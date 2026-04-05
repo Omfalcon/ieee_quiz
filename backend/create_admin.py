@@ -1,11 +1,10 @@
-from passlib.context import CryptContext
+import bcrypt
 from pymongo import MongoClient
 from backend.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def get_password_hash(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def create_admin():
     print("=== Create Admin User ===")
@@ -14,7 +13,7 @@ def create_admin():
     password = input("Password: ").strip()
     
     client = MongoClient(settings.MONGO_URI)
-    db = client.get_default_database()
+    db = client.get_database("ieee_quiz")
     
     existing_user = db.users.find_one({"email": email})
     if existing_user:

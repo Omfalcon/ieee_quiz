@@ -39,7 +39,7 @@ const StudentSignup = () => {
         try {
             await api.post('/auth/student/verify-otp', { email, otp });
             // Redirect to login on success
-            navigate('/student/login?success=verified');
+            window.location.replace('/login?success=verified');
         } catch (err) {
             setError(err.response?.data?.detail || 'Verification failed');
         }

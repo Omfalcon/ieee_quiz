@@ -13,21 +13,24 @@ const GoogleCallback = () => {
         const token = queryParams.get('token');
 
         if (token) {
-            login(token);
+            // Store the token first
+            localStorage.setItem('token', token);
             try {
                 const decoded = jwtDecode(token);
+                // Use window.location.replace for a full page reload so
+                // AuthContext re-initializes from localStorage cleanly
                 if (decoded.role === 'admin') {
-                    navigate('/admin/dashboard', { replace: true });
+                    window.location.replace('/admin/dashboard');
                 } else {
-                    navigate('/student/dashboard', { replace: true });
+                    window.location.replace('/student/dashboard');
                 }
             } catch (err) {
-                navigate('/login?error=auth_failed', { replace: true });
+                window.location.replace('/login?error=auth_failed');
             }
         } else {
-            navigate('/login?error=auth_failed', { replace: true });
+            window.location.replace('/login?error=auth_failed');
         }
-    }, [location, login, navigate]);
+    }, []);
 
     return (
         <div className="auth-container">

@@ -1,9 +1,9 @@
 import random
 import string
+import bcrypt
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from authlib.integrations.starlette_client import OAuth
-from passlib.context import CryptContext
 from fastapi.responses import RedirectResponse
 
 from backend.config import settings
@@ -25,13 +25,12 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def get_password_hash(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
