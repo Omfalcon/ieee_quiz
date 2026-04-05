@@ -8,7 +8,7 @@ const StudentSignup = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
-    
+
     // OTP State
     const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification
     const [otp, setOtp] = useState('');
@@ -48,19 +48,19 @@ const StudentSignup = () => {
     return (
         <div className="auth-container">
             <div className="header-logo">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/IEEE_logo.svg/1200px-IEEE_logo.svg.png" 
-                     alt="IEEE Logo" width="150" style={{ filter: 'brightness(0) invert(1)' }} />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/IEEE_logo.svg/1200px-IEEE_logo.svg.png"
+                    alt="IEEE Logo" width="150" style={{ filter: 'brightness(0) invert(1)' }} />
                 <h1>IEEE UPES QuizHub</h1>
             </div>
 
             <div className="auth-card">
                 <h2 className="auth-title">Sign up</h2>
-                
+
                 {step === 1 ? (
                     <>
-                        <button 
-                            type="button" 
-                            className="btn" 
+                        <button
+                            type="button"
+                            className="btn"
                             onClick={() => window.location.href = 'http://localhost:8000/auth/google'}
                             style={{ backgroundColor: 'white', color: '#757575', border: '1px solid #ddd', marginBottom: '1rem' }}
                         >
@@ -71,80 +71,80 @@ const StudentSignup = () => {
                         <div className="divider">or continue with email</div>
 
                         <form onSubmit={handleSignup}>
-                        <div className="form-group">
-                            <label>Full Name</label>
-                            <div className="input-wrapper">
-                                <span className="input-icon">👤</span>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    placeholder="Your Name"
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                    required 
-                                />
+                            <div className="form-group">
+                                <label>Full Name</label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">👤</span>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Your Name"
+                                        value={name}
+                                        onChange={e => setName(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="form-group">
-                            <label>Email</label>
-                            <div className="input-wrapper">
-                                <span className="input-icon">✉️</span>
-                                <input 
-                                    type="email" 
-                                    className="form-control" 
-                                    placeholder="Email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    required 
-                                />
+                            <div className="form-group">
+                                <label>Email</label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">✉️</span>
+                                    <input
+                                        type="email"
+                                        className="form-control"
+                                        placeholder="Email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="form-group">
-                            <label>Password</label>
-                            <div className="input-wrapper">
-                                <span className="input-icon">🔒</span>
-                                <input 
-                                    type="password" 
-                                    className="form-control" 
-                                    placeholder="Password"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required 
-                                />
+                            <div className="form-group">
+                                <label>Password</label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">🔒</span>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        placeholder="Password"
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="form-group">
-                            <label>Confirm Password</label>
-                            <div className="input-wrapper">
-                                <span className="input-icon">🔒</span>
-                                <input 
-                                    type="password" 
-                                    className="form-control" 
-                                    placeholder="Confirm Password"
-                                    value={confirmPassword}
-                                    onChange={e => setConfirmPassword(e.target.value)}
-                                    required 
-                                />
+                            <div className="form-group">
+                                <label>Confirm Password</label>
+                                <div className="input-wrapper">
+                                    <span className="input-icon">🔒</span>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        placeholder="Confirm Password"
+                                        value={confirmPassword}
+                                        onChange={e => setConfirmPassword(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        {error && <div className="error-message" style={{marginBottom: '1rem'}}>{error}</div>}
+                            {error && <div className="error-message" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-                        <button type="submit" className="btn btn-primary">Sign up</button>
-                        
-                        <div className="auth-footer">
-                            By signing up, you agree to our Privacy Policy
-                            <div className="divider"></div>
-                            Already have an account? <Link to="/login">Sign In</Link>
-                        </div>
-                    </form>
+                            <button type="submit" className="btn btn-primary">Sign up</button>
+
+                            <div className="auth-footer">
+                                By signing up, you agree to our Privacy Policy
+                                <div className="divider"></div>
+                                Already have an account? <Link to="/login">Sign In</Link>
+                            </div>
+                        </form>
                     </>
                 ) : (
                     <form onSubmit={handleVerify}>
-                        {successMsg && <div style={{color: 'var(--success)', marginBottom: '1rem'}}>{successMsg}</div>}
+                        {successMsg && <div style={{ color: 'var(--success)', marginBottom: '1rem' }}>{successMsg}</div>}
                         <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>
                             Please enter the 6-digit verification code sent to <strong>{email}</strong>.
                         </p>
@@ -152,24 +152,24 @@ const StudentSignup = () => {
                             <label>Verification Code</label>
                             <div className="input-wrapper">
                                 <span className="input-icon">🔢</span>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
+                                <input
+                                    type="text"
+                                    className="form-control"
                                     placeholder="000000"
                                     value={otp}
                                     onChange={e => setOtp(e.target.value)}
-                                    required 
+                                    required
                                     maxLength={6}
                                 />
                             </div>
                         </div>
-                        {error && <div className="error-message" style={{marginBottom: '1rem'}}>{error}</div>}
-                        
+                        {error && <div className="error-message" style={{ marginBottom: '1rem' }}>{error}</div>}
+
                         <button type="submit" className="btn btn-primary">Verify Email</button>
-                        <button 
-                            type="button" 
-                            className="btn btn-outline" 
-                            style={{marginTop: '1rem'}}
+                        <button
+                            type="button"
+                            className="btn btn-outline"
+                            style={{ marginTop: '1rem' }}
                             onClick={() => setStep(1)}
                         >
                             Back to Registration

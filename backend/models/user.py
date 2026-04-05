@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
@@ -26,11 +26,11 @@ class Token(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., max_length=72)
+    password: str
 
 class SignupRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., max_length=72)
+    password: str
     name: Optional[str] = None
 
 class VerifyRequest(BaseModel):
