@@ -1,6 +1,27 @@
 import React from "react";
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  Video,
+  BarChart2,
+  Database,
+  Award,
+  Settings
+} from "lucide-react";
 
 const Sidebar = () => {
+
+  const itemStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "14px"
+  };
+
   return (
     <div
       style={{
@@ -8,20 +29,55 @@ const Sidebar = () => {
         background: "#ffffff",
         height: "100vh",
         borderRight: "1px solid #e5e7eb",
-        padding: "20px",
+        padding: "20px"
       }}
     >
-      <h3 style={{ marginBottom: "20px" }}>IEEE QuizHub</h3>
+      {/* TITLE */}
+      <h3 style={{ marginBottom: "25px" }}>IEEE QuizHub</h3>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-        <span>Dashboard</span>
-        <span>Manage Quizzes</span>
-        <span>User Management</span>
-        <span>Live Sessions</span>
-        <span>Analytics</span>
-        <span>Question Bank</span>
-        <span>Certificates</span>
-        <span>Settings</span>
+      {/* MENU */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+
+        <div style={itemStyle}>
+          <LayoutDashboard size={18} />
+          <span>Dashboard</span>
+        </div>
+
+        <div style={itemStyle}>
+          <FileText size={18} />
+          <span>Manage Quizzes</span>
+        </div>
+
+        <div style={itemStyle}>
+          <Users size={18} />
+          <span>User Management</span>
+        </div>
+
+        <div style={itemStyle}>
+          <Video size={18} />
+          <span>Live Sessions</span>
+        </div>
+
+        <div style={itemStyle}>
+          <BarChart2 size={18} />
+          <span>Analytics</span>
+        </div>
+
+        <div style={itemStyle}>
+          <Database size={18} />
+          <span>Question Bank</span>
+        </div>
+
+        <div style={itemStyle}>
+          <Award size={18} />
+          <span>Certificates</span>
+        </div>
+
+        <div style={itemStyle}>
+          <Settings size={18} />
+          <span>Settings</span>
+        </div>
+
       </div>
     </div>
   );

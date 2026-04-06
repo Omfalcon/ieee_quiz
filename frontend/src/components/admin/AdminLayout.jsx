@@ -4,24 +4,30 @@ import Navbar from "./Navbar";
 
 const AdminLayout = ({ children }) => {
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
+    <div>
 
-      {/* Sidebar */}
-      <Sidebar />
+      {/* 🔵 FULL WIDTH TOP NAVBAR */}
+      <Navbar />
 
-      {/* Main Section */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {/* BELOW NAVBAR */}
+      <div style={{ display: "flex" }}>
 
-        {/* Navbar */}
-        <Navbar />
+        {/* SIDEBAR */}
+        <Sidebar />
 
-        {/* Content */}
-        <div style={{ padding: "20px", background: "#f5f6fa", flex: 1 }}>
+        {/* MAIN CONTENT */}
+        <div
+          style={{
+            flex: 1,
+            padding: "20px",
+            background: "#f5f6fa",
+            minHeight: "calc(100vh - 60px)",
+          }}
+        >
           {children}
         </div>
 
       </div>
-
     </div>
   );
 };

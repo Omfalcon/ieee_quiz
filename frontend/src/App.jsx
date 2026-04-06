@@ -28,13 +28,13 @@ function App() {
             } 
           />
           
-          <Route 
-            path="/admin/dashboard" 
+          <Route
+            path="/admin/dashboard"
             element={
               <ProtectedRoute roleRequired="admin">
                 <AdminDashboard />
               </ProtectedRoute>
-            } 
+            }
           />
           
         </Routes>
