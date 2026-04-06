@@ -4,8 +4,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.routes import auth
 from backend.config import settings
 from backend.database import connect_db, close_db
+from backend.quiz_routes import router as quiz_router
 
 app = FastAPI(title="IEEE UPES QuizHub API")
+app.include_router(quiz_router)
 
 app.add_middleware(
     CORSMiddleware,

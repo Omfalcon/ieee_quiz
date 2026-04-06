@@ -1,11 +1,35 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronDown, Calendar, Search } from "lucide-react";
+import axios from "axios";
 
 const QuizTable = () => {
 
+  // ✅ STATE (stores backend data)
+  const [quizData, setQuizData] = useState([]);
+
+  // ✅ FETCH FROM BACKEND (AUTO REFRESH FOR TESTING)
+  useEffect(() => {
+    const fetchData = () => {
+      axios.get("http://127.0.0.1:8000/quizzes")
+        .then((res) => {
+          console.log("API DATA:", res.data); // DEBUG
+          setQuizData(res.data);
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+    };
+
+    fetchData();
+
+    const interval = setInterval(fetchData, 2000); // refresh every 2 sec
+
+    return () => clearInterval(interval);
+  }, []);
+
   // ✅ INPUT STYLE
   const inputStyle = {
-    width: "100%", // ✅ FULL WIDTH FIX
+    width: "100%",
     padding: "8px 30px 8px 10px",
     borderRadius: "6px",
     border: "1px solid #ddd",
@@ -21,13 +45,13 @@ const QuizTable = () => {
     color: "gray"
   };
 
-  // ✅ FILTER BOX (EACH INPUT CONTAINER)
+  // ✅ FILTER BOX
   const filterBox = {
     position: "relative",
-    flex: 1 // ✅ EACH TAKES EQUAL WIDTH
+    flex: 1
   };
 
-  // ✅ TABLE HEADER STYLE
+  // ✅ TABLE HEADER
   const thStyle = {
     textAlign: "left",
     padding: "12px",
@@ -36,7 +60,7 @@ const QuizTable = () => {
     color: "#555"
   };
 
-  // ✅ TABLE CELL STYLE
+  // ✅ TABLE CELL
   const tdStyle = {
     padding: "12px",
     fontSize: "14px",
@@ -105,37 +129,25 @@ const QuizTable = () => {
         width: "70%"
       }}
     >
-      {/* TITLE */}
       <h2 style={{ marginBottom: "15px" }}>Quiz Management</h2>
 
-      {/* ✅ FIXED FILTERS */}
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          marginBottom: "15px",
-          width: "100%"
-        }}
-      >
-        {/* STATUS */}
+      {/* FILTERS */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
         <div style={filterBox}>
           <input placeholder="Status" style={inputStyle} />
           <ChevronDown size={16} style={iconStyle} />
         </div>
 
-        {/* CATEGORY */}
         <div style={filterBox}>
           <input placeholder="Category" style={inputStyle} />
           <ChevronDown size={16} style={iconStyle} />
         </div>
 
-        {/* DATE */}
         <div style={filterBox}>
           <input placeholder="Date" style={inputStyle} />
           <Calendar size={16} style={iconStyle} />
         </div>
 
-        {/* SEARCH */}
         <div style={filterBox}>
           <input placeholder="Search..." style={inputStyle} />
           <Search size={16} style={iconStyle} />
@@ -162,35 +174,24 @@ const QuizTable = () => {
         </thead>
 
         <tbody>
-          <tr style={rowStyle}>
-            <td style={tdStyle}>Signal Processing</td>
-            <td style={tdStyle}>Category</td>
-            <td style={tdStyle}>
-              <span style={liveBadge}>Live</span>
-            </td>
-            <td style={tdStyle}>Mar 21, 2026</td>
-            <td style={tdStyle}>200</td>
-            <td style={tdStyle}>
-              <button style={editBtn}>Edit</button>
-              <button style={viewBtn}>View</button>
-              <span style={deleteIconStyle}>🗑️</span>
-            </td>
-          </tr>
-
-          <tr style={rowStyle}>
-            <td style={tdStyle}>Networking Basics</td>
-            <td style={tdStyle}>Category</td>
-            <td style={tdStyle}>
-              <span style={finishedBadge}>Finished</span>
-            </td>
-            <td style={tdStyle}>Mar 20, 2026</td>
-            <td style={tdStyle}>150</td>
-            <td style={tdStyle}>
-              <button style={editBtn}>Edit</button>
-              <button style={viewBtn}>View</button>
-              <span style={deleteIconStyle}>🗑️</span>
-            </td>
-          </tr>
+          {quizData.map((quiz) => (
+            <tr key={quiz.id} style={rowStyle}>
+              <td style={tdStyle}>{quiz.title}</td>
+              <td style={tdStyle}>{quiz.category}</td>
+              <td style={tdStyle}>
+                <span style={quiz.status === "Live" ? liveBadge : finishedBadge}>
+                  {quiz.status}
+                </span>
+              </td>
+              <td style={tdStyle}>{quiz.created_date}</td>
+              <td style={tdStyle}>{quiz.participants}</td>
+              <td style={tdStyle}>
+                <button style={editBtn}>Edit</button>
+                <button style={viewBtn}>View</button>
+                <span style={deleteIconStyle}>🗑️</span>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
