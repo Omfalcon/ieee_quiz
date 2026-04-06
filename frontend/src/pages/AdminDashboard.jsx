@@ -1,32 +1,41 @@
-import React, { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React from "react";
+import AdminLayout from "../components/admin/AdminLayout";
+import StatsCard from "../components/admin/StatsCard";
+import QuizTable from "../components/admin/QuizTable";
+import LiveSessions from "../components/admin/LiveSessions";
+import RecentActivity from "../components/admin/RecentActivity";
 
 const AdminDashboard = () => {
-    const { user, logout } = useContext(AuthContext);
+  return (
+    <AdminLayout>
 
-    return (
-        <div style={{ backgroundColor: '#f4f7f6', minHeight: '100vh' }}>
-            <div className="dashboard-container">
-                <header className="dashboard-header" style={{ borderLeft: '4px solid var(--error)' }}>
-                    <div className="user-profile">
-                        <div className="avatar" style={{ backgroundColor: 'var(--error)' }}>A</div>
-                        <div>
-                            <h2 style={{ fontSize: '1.25rem', marginBottom: '0.2rem' }}>Admin Portal</h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{user?.sub}</p>
-                        </div>
-                    </div>
-                    <button className="btn btn-outline" style={{width: 'auto', padding: '0.5rem 1.5rem'}} onClick={logout}>
-                        Logout
-                    </button>
-                </header>
+      {/* TITLE */}
+      <h1 style={{ marginBottom: "20px" }}>Admin Portal Overview</h1>
 
-                <div className="auth-card" style={{ maxWidth: '100%', padding: '3rem 2rem' }}>
-                    <h3 style={{ marginBottom: '1rem' }}>Admin Controls</h3>
-                    <p style={{ color: 'var(--text-muted)' }}>This is the admin dashboard where you can manage students and create quizzes. (Work in progress)</p>
-                </div>
-            </div>
+      {/* ✅ FULL WIDTH STATS (FIXED) */}
+      <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
+        <StatsCard title="Total Active Users" value="100" />
+        <StatsCard title="Total Quizzes" value="25" />
+        <StatsCard title="Upcoming Sessions" value="1" />
+        <StatsCard title="Platform Engagement" value="2.5k" />
+      </div>
+
+      {/* ✅ BOTTOM SECTION (LEFT + RIGHT) */}
+      <div style={{ display: "flex", gap: "20px" }}>
+
+        {/* LEFT → Quiz Table */}
+        <QuizTable />
+
+        {/* RIGHT → EMPTY FOR NOW */}
+        <div style={{ width: "30%" }}>
+          <LiveSessions />
+          <RecentActivity />
         </div>
-    );
+
+      </div>
+
+    </AdminLayout>
+  );
 };
 
 export default AdminDashboard;
