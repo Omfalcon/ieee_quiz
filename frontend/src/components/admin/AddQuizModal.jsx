@@ -7,7 +7,7 @@ const AddQuizModal = ({ onClose, onAdd }) => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !category || !startTime || !endTime) {
       alert("Please fill all fields");
       return;
@@ -20,7 +20,7 @@ const AddQuizModal = ({ onClose, onAdd }) => {
       end_time: endTime
     };
 
-    onAdd(newQuiz);
+    await onAdd(newQuiz);
     onClose();
   };
 

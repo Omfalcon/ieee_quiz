@@ -1,35 +1,56 @@
 from fastapi import APIRouter, HTTPException
+from datetime import datetime
 
 router = APIRouter()
 
-# -------------------------------
-# MOCK DATABASE
-# -------------------------------
+# ✅ IN-MEMORY DATABASE (for now)
 quizzes = [
     {
         "id": 1,
-        "title": "BACKEND TEST QUIZ 🚀",
+        "title": "Signal Processing",
         "category": "Engineering",
-        "status": "Live",
-        "created_date": "2026-03-21",
+        "start_time": "2026-03-21T10:00",
+        "end_time": "2026-03-21T12:00",
         "participants": 200
     },
     {
         "id": 2,
-        "title": "FROM BACKEND ✅",
+        "title": "Networking Basics",
         "category": "CS",
-        "status": "Finished",
-        "created_date": "2026-03-20",
+        "start_time": "2026-03-20T09:00",
+        "end_time": "2026-03-20T10:00",
         "participants": 150
     }
 ]
 
 # -------------------------------
-# GET ALL QUIZZES (IMPORTANT)
+# GET ALL QUIZZES
 # -------------------------------
 @router.get("/quizzes")
 def get_quizzes():
     return quizzes
+
+
+# -------------------------------
+# ADD NEW QUIZ
+# -------------------------------
+@router.post("/quizzes")
+def add_quiz(quiz: dict):
+    try:
+        new_quiz = {
+            "id": len(quizzes) + 1,
+            "title": quiz["title"],
+            "category": quiz["category"],
+            "start_time": quiz["start_time"],
+            "end_time": quiz["end_time"],
+            "participants": 0
+        }
+
+        quizzes.append(new_quiz)
+        return new_quiz
+
+    except KeyError:
+        raise HTTPException(status_code=400, detail="Invalid quiz data")
 
 
 # -------------------------------
@@ -45,13 +66,3 @@ def delete_quiz(quiz_id: int):
             return {"message": "Quiz deleted successfully"}
 
     raise HTTPException(status_code=404, detail="Quiz not found")
-
-@router.post("/quizzes")
-def add_quiz(quiz: dict):
-    global quizzes
-
-    new_id = max(q["id"] for q in quizzes) + 1 if quizzes else 1
-    quiz["id"] = new_id
-
-    quizzes.append(quiz)
-    return quiz
