@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ChevronDown, Calendar, Search } from "lucide-react";
 import axios from "axios";
 
-const QuizTable = () => {
+const QuizTable = ({ newQuiz }) => {
 
   // ✅ STATE (stores backend data)
   const [quizData, setQuizData] = useState([]);
@@ -22,10 +22,13 @@ const QuizTable = () => {
 
     fetchData();
 
-    const interval = setInterval(fetchData, 2000); // refresh every 2 sec
-
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (newQuiz) {
+      setQuizData((prev) => [newQuiz, ...prev]);
+    }
+  }, [newQuiz]);
 
   // ✅ INPUT STYLE
   const inputStyle = {
@@ -120,6 +123,15 @@ const QuizTable = () => {
     cursor: "pointer"
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://127.0.0.1:8000/quizzes/${id}`);
+      setQuizData((prev) => prev.filter((quiz) => quiz.id !== id));
+    } catch (error) {
+    console.error("Delete failed:", error);
+    }
+  };
+
   return (
     <div
       style={{
@@ -188,7 +200,12 @@ const QuizTable = () => {
               <td style={tdStyle}>
                 <button style={editBtn}>Edit</button>
                 <button style={viewBtn}>View</button>
-                <span style={deleteIconStyle}>🗑️</span>
+                <span
+                  style={deleteIconStyle}
+                  onClick={() => handleDelete(quiz.id)}
+                >
+                  🗑️
+                </span>
               </td>
             </tr>
           ))}
