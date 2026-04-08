@@ -51,7 +51,7 @@ const QuizTable = ({ refresh }) => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/quizzes/${id}`);
+      await axios.delete(`http://127.0.0.1:8000/quizzes/${quiz._id}`);
       fetchQuizzes();
     } catch (err) {
       console.error(err);
@@ -111,7 +111,7 @@ const QuizTable = ({ refresh }) => {
             const status = getStatus(quiz.start_time, quiz.end_time);
 
             return (
-              <tr key={quiz.id} style={rowStyle}>
+              <tr key={quiz._id} style={rowStyle}>
                 <td style={tdStyle}>{quiz.title}</td>
                 <td style={tdStyle}>{quiz.category}</td>
 
@@ -128,7 +128,7 @@ const QuizTable = ({ refresh }) => {
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <button style={editBtn}>Edit</button>
                     <button style={viewBtn}>View</button>
-                    <span onClick={() => handleDelete(quiz.id)} style={deleteIcon}>
+                    <span onClick={() => handleDelete(quiz._id)} style={deleteIcon}>
                       🗑️
                     </span>
                   </div>
