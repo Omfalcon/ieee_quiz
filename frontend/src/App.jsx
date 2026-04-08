@@ -8,11 +8,18 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import GoogleCallback from './components/GoogleCallback';
 
+import ManageQuizzes from './pages/ManageQuizzes';
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+
+            <Route path="/manage-quizzes" element={<ManageQuizzes />} />
+            <Route path="/manage-quizzes/edit/:id" element={<ManageQuizzes />} />
+            <Route path="/manage-quizzes/view/:id" element={<ManageQuizzes />} />
+
           <Route path="/" element={<Navigate to="/login" replace />} />
           
           <Route path="/login" element={<Login />} />
