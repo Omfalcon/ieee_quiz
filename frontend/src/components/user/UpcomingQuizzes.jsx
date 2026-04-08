@@ -1,49 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import QuizCard from './QuizCard';
+import React from 'react';
 
 const UpcomingQuizzes = ({ quizzes = [] }) => {
-  const [upcomingQuizzes, setUpcomingQuizzes] = useState([]);
-
-  useEffect(() => {
-    // Filter only upcoming quizzes
-    const filtered = quizzes.filter(quiz => quiz.status === 'upcoming');
-    setUpcomingQuizzes(filtered);
-  }, [quizzes]);
-
-  const handleRegisterQuiz = (quizId, quizTitle) => {
-    console.log(`Registered for quiz: ${quizId} - ${quizTitle}`);
-    // Handle registration logic
-  };
+  // Filter directly from props for cleaner code
+  const upcomingQuizzes = quizzes.filter(quiz => quiz.status === 'upcoming');
 
   return (
-    <div className="upcoming-quizzes-section">
-      <div className="section-header">
-        <h2 className="section-title">
-          <span className="ieee-icon">◆</span> UPCOMING QUIZZES
-        </h2>
-      </div>
-      
+    <div className="upcoming-quizzes-container">
       {upcomingQuizzes && upcomingQuizzes.length > 0 ? (
-        <div className="upcoming-quizzes-table">
-          <table className="quizzes-table">
+        <div className="table-responsive">
+          <table className="ieee-table">
             <thead>
               <tr>
-                <th>Quiz Title</th>
-                <th>Date/Time</th>
-                <th>Duration</th>
-                <th>Action</th>
+                <th>QUIZ TITLE</th>
+                <th>DATE/TIME</th>
+                <th>DURATION</th>
+                <th className="text-center">ACTION</th>
               </tr>
             </thead>
             <tbody>
               {upcomingQuizzes.map((quiz) => (
                 <tr key={quiz.id}>
-                  <td className="quiz-name">{quiz.title}</td>
-                  <td className="quiz-datetime">{quiz.scheduledDate} {quiz.scheduledTime}</td>
-                  <td className="quiz-duration">{quiz.duration}</td>
-                  <td className="quiz-action">
+                  <td className="quiz-title-cell">{quiz.title}</td>
+                  <td className="quiz-info-cell">{quiz.scheduledDate}, {quiz.scheduledTime}</td>
+                  <td className="quiz-info-cell">{quiz.duration}</td>
+                  <td className="text-center">
                     <button 
-                      className="register-btn"
-                      onClick={() => handleRegisterQuiz(quiz.id, quiz.title)}
+                      className="register-btn-small"
+                      onClick={() => console.log(`Registering for: ${quiz.id}`)}
                     >
                       REGISTER
                     </button>

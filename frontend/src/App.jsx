@@ -22,10 +22,8 @@ function App() {
           <Route 
             path="/student/dashboard" 
             element={
-              <ProtectedRoute roleRequired="student">
                 <StudentDashboard />
-              </ProtectedRoute>
-            } 
+            }
           />
           
           <Route

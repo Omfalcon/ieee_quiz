@@ -7,57 +7,35 @@ const QuizCard = ({
   timeRemaining, 
   status = "LIVE", 
   onAction, 
-  actionLabel = "JOIN NOW",
-  score,
-  totalMarks
+  actionLabel = "JOIN NOW"
 }) => {
-  const getStatusClass = () => {
-    switch(status) {
-      case "LIVE": return "status-live";
-      case "upcoming": return "status-upcoming";
-      case "completed": return "status-completed";
-      default: return "";
-    }
-  };
-
-  const getTypeIcon = () => {
-    switch(type) {
-      case "quiz": return "📝";
-      case "test": return "✓";
-      default: return "📋";
-    }
-  };
-
   return (
     <div className="quiz-card">
+      {/* Light gray header area */}
       <div className="quiz-card-header">
         <h3 className="quiz-title">{title}</h3>
-        {status === "LIVE" && <span className={`status-badge ${getStatusClass()}`}>🔴 {status}</span>}
+        {status === "LIVE" && <span className="status-badge-live">LIVE</span>}
       </div>
       
       <div className="quiz-card-body">
-        <div className="quiz-meta">
-          <span className="quiz-type">
-            <span className="type-icon">{getTypeIcon()}</span>
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </span>
+        <div className="quiz-info-row">
+          <span className="info-icon">📝</span> 
+          <span className="info-label">{type.charAt(0).toUpperCase() + type.slice(1)}</span>
         </div>
 
-        {status === "completed" && score !== undefined ? (
-          <div className="quiz-score">
-            <span className="score-display">{score}/{totalMarks}</span>
-          </div>
-        ) : (
-          <div className="quiz-info">
-            {duration && <span className="quiz-duration">⏱️ {duration}</span>}
-            {timeRemaining && <span className="time-remaining">Time remaining: {timeRemaining}</span>}
-          </div>
-        )}
+        <div className="quiz-info-row">
+          <span className="info-icon">⏱️</span>
+          <span className="info-label">{duration}</span>
+        </div>
+
+        <div className="time-remaining-text">
+          Time remaining: {timeRemaining}
+        </div>
       </div>
 
       <div className="quiz-card-footer">
         <button 
-          className="action-btn" 
+          className="join-now-btn" 
           onClick={onAction}
         >
           {actionLabel}

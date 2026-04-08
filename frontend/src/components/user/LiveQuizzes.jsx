@@ -1,32 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import QuizCard from './QuizCard';
 
 const LiveQuizzes = ({ quizzes = [] }) => {
-  const [liveQuizzes, setLiveQuizzes] = useState([]);
-
-  useEffect(() => {
-    // Filter only live quizzes
-    const filtered = quizzes.filter(quiz => quiz.status === 'LIVE');
-    setLiveQuizzes(filtered);
-  }, [quizzes]);
-
-  const handleJoinQuiz = (quizId, quizTitle) => {
-    console.log(`Joining quiz: ${quizId} - ${quizTitle}`);
-    // Navigate to quiz page or open quiz interface
-    // window.location.href = `/quiz/${quizId}`;
-  };
-
+  // We can filter directly in the render or use the prop passed from Dashboard
+  const liveQuizzes = quizzes.filter(quiz => quiz.status === 'LIVE');
   return (
-    <div className="live-quizzes-section">
-      <div className="section-header">
-        <h2 className="section-title">
-          <span className="ieee-icon">◆</span> LIVE QUIZZES NOW
-        </h2>
-      </div>
-      
-      <div className="quizzes-grid">
-        {liveQuizzes && liveQuizzes.length > 0 ? (
-          liveQuizzes.map((quiz) => (
+    <div className="live-quizzes-container">
+      {liveQuizzes && liveQuizzes.length > 0 ? (
+        <div className="quizzes-grid">
+          {liveQuizzes.map((quiz) => (
             <QuizCard
               key={quiz.id}
               title={quiz.title}
@@ -35,15 +17,16 @@ const LiveQuizzes = ({ quizzes = [] }) => {
               timeRemaining={quiz.timeRemaining}
               status="LIVE"
               actionLabel="JOIN NOW"
-              onAction={() => handleJoinQuiz(quiz.id, quiz.title)}
+              // Pass the ID so the handler knows which quiz to open
+              onAction={() => console.log(`Joining quiz: ${quiz.id}`)}
             />
-          ))
-        ) : (
-          <div className="no-quizzes">
-            <p>No live quizzes at the moment. Check back soon!</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="no-quizzes">
+          <p>No live quizzes at the moment. Check back soon!</p>
+        </div>
+      )}
     </div>
   );
 };
