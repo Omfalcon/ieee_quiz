@@ -16,9 +16,11 @@ function App() {
       <AuthProvider>
         <Routes>
 
-            <Route path="/manage-quizzes" element={<ManageQuizzes />} />
-            <Route path="/manage-quizzes/edit/:id" element={<ManageQuizzes />} />
-            <Route path="/manage-quizzes/view/:id" element={<ManageQuizzes />} />
+            <Route path="/admin/manage-quizzes" element={<ManageQuizzes />} />
+            <Route path="/admin/manage-quizzes/edit/:id" element={<ManageQuizzes />} />
+            <Route path="/admin/manage-quizzes/view/:id" element={<ManageQuizzes />} />
+
+            <Route path="/admin/manage-quizzes/create" element={<ManageQuizzes />} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
           

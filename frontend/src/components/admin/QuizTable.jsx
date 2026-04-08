@@ -32,13 +32,15 @@ const QuizTable = ({ refresh }) => {
     });
   };
 
-  const getStatus = (start, end) => {
-    const now = new Date();
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+  const getStatus = (quiz) => {
+    if (quiz.is_active) return "Live";
 
-    if (now < startDate) return "Scheduled";
-    if (now >= startDate && now <= endDate) return "Live";
+    const now = new Date();
+    const start = new Date(quiz.start_time);
+    const end = new Date(quiz.end_time);
+
+    if (now < start) return "Scheduled";
+    if (now >= start && now <= end) return "Live";
     return "Finished";
   };
 
@@ -60,12 +62,12 @@ const QuizTable = ({ refresh }) => {
   return (
     <div style={{ background: "white", padding: "20px", borderRadius: "10px", flex: 2 }}>
 
-      {/* 🔥 HEADER WITH BUTTON */}
+      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
         <h2>Quiz Management</h2>
 
         <button
-          onClick={() => navigate("/manage-quizzes")}
+          onClick={() => navigate("/admin/manage-quizzes")}
           style={addBtn}
         >
           + Add Quiz
@@ -81,7 +83,7 @@ const QuizTable = ({ refresh }) => {
       </div>
 
       {/* TABLE */}
-      <table style={{ width: "100%", borderSpacing: "0 10px" }}>
+      <table style={{ width: "100%", borderSpacing: "0 10px", tableLayout: "fixed" }}>
         <thead>
           <tr>
             <th style={thStyle}>Quiz Title</th>
@@ -96,7 +98,7 @@ const QuizTable = ({ refresh }) => {
 
         <tbody>
           {quizzes.map((quiz) => {
-            const status = getStatus(quiz.start_time, quiz.end_time);
+            const status = getStatus(quiz);
 
             return (
               <tr key={quiz._id} style={rowStyle}>
@@ -108,22 +110,17 @@ const QuizTable = ({ refresh }) => {
                 <td style={tdStyle}>{quiz.participants || 0}</td>
 
                 <td style={tdStyle}>
-                  <div style={{ display: "flex", gap: "6px" }}>
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
 
-                    <button
-                      style={editBtn}
-                      onClick={() => navigate(`/manage-quizzes/edit/${quiz._id}`)}
-                    >
-                      Edit
-                    </button>
-
+                    {/* VIEW */}
                     <button
                       style={viewBtn}
-                      onClick={() => navigate(`/manage-quizzes/view/${quiz._id}`)}
+                      onClick={() => navigate(`/admin/manage-quizzes/view/${quiz._id}`)}
                     >
                       View
                     </button>
 
+                    {/* DELETE */}
                     <span onClick={() => handleDelete(quiz._id)} style={deleteIcon}>
                       🗑️
                     </span>
@@ -154,17 +151,40 @@ const filterBox = { position: "relative", flex: 1 };
 const inputStyle = { width: "100%", padding: "8px 30px 8px 10px", borderRadius: "6px", border: "1px solid #ddd" };
 const iconStyle = { position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", color: "gray" };
 
-const thStyle = { textAlign: "left", padding: "10px", fontSize: "14px", color: "#555" };
-const tdStyle = { padding: "12px", borderTop: "1px solid #eee" };
-const rowStyle = { background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" };
+const thStyle = {
+  textAlign: "left",
+  padding: "10px",
+  fontSize: "14px",
+  color: "#555",
+  whiteSpace: "nowrap"
+};
+
+const tdStyle = {
+  padding: "12px",
+  borderTop: "1px solid #eee",
+  wordBreak: "break-word"
+};
+
+const rowStyle = {
+  background: "#fff",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+};
 
 const liveBadge = { background: "#28a745", color: "white", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
 const finishedBadge = { background: "#6c757d", color: "white", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
 const scheduledBadge = { background: "#ffc107", color: "black", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
 
-const editBtn = { background: "#1e63b5", color: "white", border: "none", padding: "5px 10px", borderRadius: "5px", cursor: "pointer" };
-const viewBtn = { background: "#e0e0e0", border: "none", padding: "5px 10px", borderRadius: "5px", cursor: "pointer" };
+const viewBtn = {
+  background: "#e0e0e0",
+  border: "none",
+  padding: "5px 10px",
+  borderRadius: "5px",
+  cursor: "pointer"
+};
 
-const deleteIcon = { cursor: "pointer", fontSize: "16px" };
+const deleteIcon = {
+  cursor: "pointer",
+  fontSize: "16px"
+};
 
 export default QuizTable;

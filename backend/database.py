@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 
-MONGO_URL = "mongodb://localhost:27017/"
+MONGO_URL = "mongodb+srv://omagarwal16805:y!Niv-CSQG3XS45@cluster0.egux1um.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
 client = None
 db = None
@@ -32,7 +32,11 @@ def serialize_quiz(quiz) -> dict:
     return {
         "_id": str(quiz["_id"]),
         "title": quiz.get("title"),
+        "category": quiz.get("category"),
         "description": quiz.get("description"),
         "start_time": quiz.get("start_time"),
         "end_time": quiz.get("end_time"),
+        "participants": quiz.get("participants", 0),
+        "questions": quiz.get("questions", []),
+        "is_active": quiz.get("is_active", False)
     }
