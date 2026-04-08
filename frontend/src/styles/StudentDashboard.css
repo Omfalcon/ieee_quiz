@@ -1,0 +1,653 @@
+/* ============================================
+   STUDENT DASHBOARD - MAIN STYLES
+   ============================================ */
+
+.student-dashboard {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* ============================================
+   STUDENT HEADER
+   ============================================ */
+
+.student-header {
+  width: 100%;
+  background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+  color: white;
+  padding: 40px 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.welcome-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 15px 0;
+  letter-spacing: 1px;
+}
+
+.stats-summary {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  gap: 15px;
+}
+
+.stat-item {
+  font-weight: 500;
+}
+
+.stat-divider {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   DASHBOARD CONTENT LAYOUT
+   ============================================ */
+
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.content-section {
+  margin-bottom: 50px;
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================
+   SECTION HEADER
+   ============================================ */
+
+.section-header {
+  margin-bottom: 30px;
+  border-bottom: 2px solid #0066cc;
+  padding-bottom: 15px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.5px;
+}
+
+.ieee-icon {
+  color: #0066cc;
+  font-size: 14px;
+}
+
+/* ============================================
+   LIVE QUIZZES SECTION
+   ============================================ */
+
+.live-quizzes-section {
+  width: 100%;
+}
+
+.quizzes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.no-quizzes {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 16px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+/* ============================================
+   QUIZ CARD
+   ============================================ */
+
+.quiz-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.quiz-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  border-color: #0066cc;
+}
+
+.quiz-card-header {
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.quiz-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+  flex: 1;
+}
+
+.status-badge {
+  background-color: #ff4444;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-live {
+  background-color: #ff4444;
+}
+
+.status-upcoming {
+  background-color: #ffa500;
+}
+
+.status-completed {
+  background-color: #4caf50;
+}
+
+.quiz-card-body {
+  padding: 15px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.quiz-meta {
+  margin-bottom: 10px;
+}
+
+.quiz-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.type-icon {
+  font-size: 16px;
+}
+
+.quiz-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.quiz-duration,
+.time-remaining {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.quiz-score {
+  padding: 10px 0;
+}
+
+.score-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0066cc;
+}
+
+.quiz-card-footer {
+  padding: 15px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.action-btn:hover {
+  background-color: #0052a3;
+  box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+}
+
+/* ============================================
+   TABLES - UPCOMING & PREVIOUS QUIZZES
+   ============================================ */
+
+.upcoming-quizzes-table,
+.previous-quizzes-table {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.quizzes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.quizzes-table thead {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #0066cc;
+}
+
+.quizzes-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+
+.quizzes-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.3s ease;
+}
+
+.quizzes-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.quizzes-table td {
+  padding: 15px;
+  color: #333;
+}
+
+.quiz-name {
+  font-weight: 500;
+  color: #0066cc;
+}
+
+.quiz-datetime {
+  color: #666;
+  font-size: 13px;
+}
+
+.quiz-duration {
+  color: #666;
+  font-size: 13px;
+}
+
+.quiz-action {
+  text-align: center;
+}
+
+.completion-date {
+  color: #666;
+  font-size: 13px;
+}
+
+/* ============================================
+   QUIZ SCORE & PROGRESS BAR
+   ============================================ */
+
+.score-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-value {
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+  font-size: 14px;
+}
+
+.score-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 150px;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background-color: #4caf50;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.score-excellent .score-bar-fill {
+  background-color: #2e7d32;
+}
+
+.score-good .score-bar-fill {
+  background-color: #558b2f;
+}
+
+.score-average .score-bar-fill {
+  background-color: #f9a825;
+}
+
+.score-poor .score-bar-fill {
+  background-color: #d32f2f;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+
+.register-btn {
+  padding: 8px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.register-btn:hover {
+  background-color: #0052a3;
+  box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
+}
+
+.register-btn:active {
+  transform: scale(0.98);
+}
+
+.quiz-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-link {
+  padding: 6px 12px;
+  background-color: white;
+  color: #0066cc;
+  border: 1px solid #0066cc;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.action-link:hover {
+  background-color: #0066cc;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
+}
+
+.action-link:active {
+  transform: scale(0.98);
+}
+
+.view-review {
+  border-color: #0066cc;
+  color: #0066cc;
+}
+
+.download-cert {
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.download-cert:hover {
+  background-color: #4caf50;
+  color: white;
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .welcome-title {
+    font-size: 24px;
+  }
+
+  .stats-summary {
+    font-size: 14px;
+    flex-wrap: wrap;
+  }
+
+  .student-header {
+    padding: 25px 15px;
+    margin-bottom: 20px;
+  }
+
+  .dashboard-content {
+    padding: 0 15px;
+  }
+
+  .content-section {
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .quizzes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .quizzes-table {
+    font-size: 12px;
+  }
+
+  .quizzes-table th,
+  .quizzes-table td {
+    padding: 10px;
+  }
+
+  .quiz-actions {
+    flex-direction: column;
+  }
+
+  .action-link {
+    width: 100%;
+    text-align: center;
+  }
+
+  .score-bar-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .score-bar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-title {
+    font-size: 18px;
+  }
+
+  .stats-summary {
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .stat-divider {
+    display: none;
+  }
+
+  .student-header {
+    padding: 20px 10px;
+    margin-bottom: 15px;
+  }
+
+  .dashboard-content {
+    padding: 0 10px;
+  }
+
+  .content-section {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .quiz-card {
+    border-radius: 6px;
+  }
+
+  .quiz-title {
+    font-size: 14px;
+  }
+
+  .quizzes-table {
+    font-size: 11px;
+  }
+
+  .quizzes-table th,
+  .quizzes-table td {
+    padding: 8px 5px;
+  }
+
+  .quiz-name {
+    font-size: 12px;
+  }
+
+  .quiz-actions {
+    gap: 5px;
+  }
+
+  .action-link {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .register-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
+
+/* ============================================
+   ANIMATION & TRANSITIONS
+   ============================================ */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-section {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-center {
+  text-align: center;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
+.upcoming-quizzes-table::-webkit-scrollbar,
+.previous-quizzes-table::-webkit-scrollbar {
+  height: 8px;
+}
+
+.upcoming-quizzes-table::-webkit-scrollbar-track,
+.previous-quizzes-table::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.upcoming-quizzes-table::-webkit-scrollbar-thumb,
+.previous-quizzes-table::-webkit-scrollbar-thumb {
+  background: #0066cc;
+  border-radius: 4px;
+}
+
+.upcoming-quizzes-table::-webkit-scrollbar-thumb:hover,
+.previous-quizzes-table::-webkit-scrollbar-thumb:hover {
+  background: #0052a3;
+}
