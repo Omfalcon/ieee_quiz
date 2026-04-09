@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const QuizTable = ({ refresh }) => {
+const QuizTable = ({ refresh, onUpdate }) => {
 
   const [quizzes, setQuizzes] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
@@ -46,6 +46,7 @@ const QuizTable = ({ refresh }) => {
       if (!window.confirm("Delete this quiz?")) return;
       await axios.delete(`http://127.0.0.1:8000/quizzes/${id}`);
       fetchQuizzes();
+      if (onUpdate) onUpdate();
     } catch (err) {
       console.error(err);
     }

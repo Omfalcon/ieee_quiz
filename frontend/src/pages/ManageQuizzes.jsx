@@ -489,18 +489,6 @@ const ManageQuizzes = () => {
                     Copy Link
                   </button>
                   <button
-                    style={{
-                      ...S.btnSecondary,
-                      padding: "7px 14px",
-                      fontSize: "13px",
-                    }}
-                    onClick={() =>
-                      navigate(`/admin/manage-quizzes/edit/${q._id}`)
-                    }
-                  >
-                    Edit
-                  </button>
-                  <button
                     style={{ ...S.btnDanger, padding: "7px 14px", fontSize: "13px" }}
                     onClick={(e) => handleDelete(q._id, e)}
                   >
@@ -522,20 +510,6 @@ const ManageQuizzes = () => {
     return (
       <AdminLayout>
         <div style={S.page}>
-          {/* Header */}
-          <div style={{ ...S.row, marginBottom: "24px" }}>
-            <button
-              style={{ ...S.btnGhost, fontSize: "20px", padding: "6px 10px" }}
-              onClick={() =>
-                isEdit
-                  ? navigate(`/admin/manage-quizzes/view/${id}`)
-                  : navigate("/admin/manage-quizzes")
-              }
-            >
-              ←
-            </button>
-            <h1 style={S.h1}>{isCreate ? "Create New Quiz" : "Edit Quiz"}</h1>
-          </div>
 
           {/* Details card */}
           <div style={S.card}>
