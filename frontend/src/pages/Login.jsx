@@ -35,7 +35,8 @@ const Login = () => {
     };
 
     const handleGoogleLogin = () => {
-        window.location.href = 'http://localhost:8000/auth/google';
+        const redirectParam = redirect ? `?redirect=${encodeURIComponent(redirect)}` : '';
+        window.location.href = `http://localhost:8000/auth/google${redirectParam}`;
     };
 
     return (

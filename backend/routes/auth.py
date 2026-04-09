@@ -131,7 +131,8 @@ async def unified_login(req: LoginRequest):
 @router.get("/google")
 async def login_google(request: Request):
     redirect_uri = f"{request.base_url}auth/google/callback" 
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    redirect_param = request.query_params.get("redirect", "/student/dashboard")
+    return await oauth.google.authorize_redirect(request, redirect_uri, state=redirect_param)
 
 @router.get("/google/callback")
 async def auth_google_callback(request: Request):
@@ -171,4 +172,5 @@ async def auth_google_callback(request: Request):
 
     jwt_token = create_access_token({"sub": email_str, "role": role, "name": name, "picture": picture})
     
-    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}")
+    redirect_path = request.query_params.get("state", "/student/dashboard")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}&redirect={redirect_path}")

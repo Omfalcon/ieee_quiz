@@ -179,7 +179,7 @@ const StudentQuizIntro = () => {
           onMouseOut={(e) => { if (quiz.status === "live") e.target.style.background = "#2563EB"; }}
         >
           {quiz.status === "live"
-            ? (user ? "Attempt Quiz Now" : "Sign up to Attempt Quiz")
+            ? (user ? "Attempt Quiz Now" : "Login to Attempt Quiz")
             : quiz.status === "finished"
               ? "This quiz has ended"
               : "Quiz not yet live"}

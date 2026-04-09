@@ -63,9 +63,9 @@ const StudentSignup = () => {
             login(res.data.access_token);
             
             if (redirect) {
-                navigate(redirect);
+                window.location.replace(redirect);
             } else {
-                navigate('/student/dashboard');
+                window.location.replace('/student/dashboard');
             }
         } catch (err) {
             console.log("FULL ERROR:", err);
@@ -95,7 +95,10 @@ const StudentSignup = () => {
                         <button
                             type="button"
                             className="btn"
-                            onClick={() => window.location.href = 'http://localhost:8000/auth/google'}
+                            onClick={() => {
+                                const redirectParam = redirect ? `?redirect=${encodeURIComponent(redirect)}` : '';
+                                window.location.href = `http://localhost:8000/auth/google${redirectParam}`;
+                            }}
                             style={{ backgroundColor: 'white', color: '#757575', border: '1px solid #ddd', marginBottom: '1rem' }}
                         >
                             <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="G" style={{ width: '20px', height: '20px' }} />
