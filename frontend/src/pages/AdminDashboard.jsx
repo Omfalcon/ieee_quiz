@@ -4,12 +4,9 @@ import StatsCard from "../components/admin/StatsCard";
 import QuizTable from "../components/admin/QuizTable";
 import LiveSessions from "../components/admin/LiveSessions";
 import RecentActivity from "../components/admin/RecentActivity";
-import AddQuizModal from "../components/admin/AddQuizModal";
 
 const AdminDashboard = () => {
 
-  // ✅ STATE MUST BE HERE (TOP LEVEL)
-  const [showModal, setShowModal] = useState(false);
   const [refresh, setRefresh] = useState(false);
   const [stats, setStats] = useState({
     totalQuizzes: 0,
@@ -18,7 +15,6 @@ const AdminDashboard = () => {
     scheduled: 0
   });
 
-  // ✅ FETCH STATS
   const fetchStats = async () => {
     try {
       const res = await fetch("http://127.0.0.1:8000/quizzes");
@@ -49,50 +45,14 @@ const AdminDashboard = () => {
     }
   };
 
-  // ✅ RUN ON LOAD + REFRESH
   useEffect(() => {
     fetchStats();
   }, [refresh]);
 
-  // ✅ ADD QUIZ
-  const handleAddQuiz = async (quizData) => {
-    try {
-      await fetch("http://127.0.0.1:8000/quizzes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(quizData)
-      });
-
-      setRefresh(prev => !prev); // 🔥 refresh UI
-
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   return (
     <AdminLayout>
 
-      {/* TITLE */}
       <h1 style={{ marginBottom: "20px" }}>Admin Portal Overview</h1>
-
-      {/* ADD QUIZ BUTTON */}
-      <button
-        onClick={() => setShowModal(true)}
-        style={{
-          marginBottom: "20px",
-          padding: "10px 15px",
-          background: "#1e63b5",
-          color: "white",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer"
-        }}
-      >
-        + Add Quiz
-      </button>
 
       {/* STATS */}
       <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
@@ -102,27 +62,17 @@ const AdminDashboard = () => {
         <StatsCard title="Scheduled Quizzes" value={stats.scheduled} />
       </div>
 
-      {/* MAIN SECTION */}
+      {/* MAIN */}
       <div style={{ display: "flex", gap: "20px" }}>
 
-        {/* LEFT */}
         <QuizTable refresh={refresh} />
 
-        {/* RIGHT */}
         <div style={{ flex: 1 }}>
           <LiveSessions />
           <RecentActivity />
         </div>
 
       </div>
-
-      {/* MODAL */}
-      {showModal && (
-        <AddQuizModal
-          onClose={() => setShowModal(false)}
-          onAdd={handleAddQuiz}
-        />
-      )}
 
     </AdminLayout>
   );
