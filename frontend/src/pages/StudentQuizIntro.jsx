@@ -59,8 +59,8 @@ const StudentQuizIntro = () => {
       return;
     }
     if (!user) {
-      alert("Please sign in or sign up first to attempt the quiz!");
-      navigate("/signup");
+      // Send to login, carry quiz URL so login bounces back here
+      navigate(`/login?redirect=/student/quiz/${id}`);
       return;
     }
     // navigate(`/student/quiz/${id}/play`);
@@ -84,13 +84,13 @@ const StudentQuizIntro = () => {
   }
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "#F8FAFC", 
-      display: "flex", 
-      justifyContent: "center", 
-      paddingTop: "60px", 
-      fontFamily: "Inter, sans-serif" 
+    <div style={{
+      minHeight: "100vh",
+      background: "#F8FAFC",
+      display: "flex",
+      justifyContent: "center",
+      paddingTop: "60px",
+      fontFamily: "Inter, sans-serif"
     }}>
       <div style={{
         background: "#fff",
@@ -104,7 +104,7 @@ const StudentQuizIntro = () => {
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px" }}>
           {quiz.category && (
             <span style={{
-              background: "#EFF6FF", color: "#2563EB", padding: "4px 12px", 
+              background: "#EFF6FF", color: "#2563EB", padding: "4px 12px",
               borderRadius: "20px", fontSize: "13px", fontWeight: "600"
             }}>
               {quiz.category}
@@ -126,12 +126,12 @@ const StudentQuizIntro = () => {
         )}
 
         <div style={{
-          display: "grid", 
-          gridTemplateColumns: "1fr 1fr", 
-          gap: "20px", 
-          padding: "20px", 
-          background: "#F8FAFC", 
-          borderRadius: "8px", 
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "20px",
+          padding: "20px",
+          background: "#F8FAFC",
+          borderRadius: "8px",
           marginBottom: "32px"
         }}>
           <div>
@@ -160,7 +160,7 @@ const StudentQuizIntro = () => {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleStart}
           disabled={quiz.status !== "live"}
           style={{
@@ -181,8 +181,8 @@ const StudentQuizIntro = () => {
           {quiz.status === "live"
             ? (user ? "Attempt Quiz Now" : "Sign up to Attempt Quiz")
             : quiz.status === "finished"
-            ? "This quiz has ended"
-            : "Quiz not yet live"}
+              ? "This quiz has ended"
+              : "Quiz not yet live"}
         </button>
       </div>
     </div>

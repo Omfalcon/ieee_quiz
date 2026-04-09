@@ -13,6 +13,8 @@ const Login = () => {
 
     const queryParams = new URLSearchParams(location.search);
     const authError = queryParams.get('error');
+    const redirect = queryParams.get('redirect');      // e.g. /student/quiz/abc
+    const justVerified = queryParams.get('success') === 'verified';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,6 +24,8 @@ const Login = () => {
             login(res.data.access_token);
             if (res.data.role === 'admin') {
                 navigate('/admin/dashboard');
+            } else if (redirect) {
+                navigate(redirect);
             } else {
                 navigate('/student/dashboard');
             }
@@ -44,6 +48,17 @@ const Login = () => {
 
             <div className="auth-card">
                 <h2 className="auth-title">Sign in</h2>
+
+                {justVerified && (
+                    <div style={{
+                        background: '#F0FDF4', border: '1px solid #86EFAC',
+                        color: '#166534', borderRadius: '8px',
+                        padding: '10px 14px', marginBottom: '1rem',
+                        fontSize: '14px'
+                    }}>
+                        ✅ Email verified! Please log in to continue.
+                    </div>
+                )}
 
                 {authError === 'oauth_failed' && (
                     <div className="error-message" style={{ marginBottom: '1rem', textAlign: 'center' }}>
@@ -99,7 +114,7 @@ const Login = () => {
                     <button type="submit" className="btn btn-primary">Sign in</button>
 
                     <div className="auth-footer" style={{ marginTop: '1.5rem' }}>
-                        Don't have an account? <Link to="/signup">Sign Up</Link>
+                        Don't have an account? <Link to={redirect ? `/signup?redirect=${redirect}` : '/signup'}>Sign Up</Link>
                     </div>
                 </form>
             </div>

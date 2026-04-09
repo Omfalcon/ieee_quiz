@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../api';
+import { AuthContext } from '../context/AuthContext';
 
 const StudentSignup = () => {
     const [name, setName] = useState('');
@@ -13,8 +14,15 @@ const StudentSignup = () => {
     const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification
     const [otp, setOtp] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useContext(AuthContext);
+
+    // Preserve redirect param so after login the user lands on the right page
+    const queryParams = new URLSearchParams(location.search);
+    const redirect = queryParams.get('redirect'); // e.g. /student/quiz/abc
 
     const handleSignup = async (e) => {
         e.preventDefault();
@@ -35,13 +43,39 @@ const StudentSignup = () => {
 
     const handleVerify = async (e) => {
         e.preventDefault();
+        
+        if (loading) return; // Prevent double submit
+        setLoading(true);
         setError('');
+        
         try {
-            await api.post('/auth/student/verify-otp', { email, otp });
-            // Redirect to login on success
-            window.location.replace('/login?success=verified');
+            const res = await api.post('/auth/student/verify-otp', {
+                email: email.trim().toLowerCase(),
+                otp: otp.trim()
+            });
+            console.log("SUCCESS RESPONSE:", res.data);
+
+            if (!res.data.access_token) {
+                throw new Error("No token received from backend");
+            }
+
+            // Auto login after verification
+            login(res.data.access_token);
+            
+            if (redirect) {
+                navigate(redirect);
+            } else {
+                navigate('/student/dashboard');
+            }
         } catch (err) {
-            setError(err.response?.data?.detail || 'Verification failed');
+            console.log("FULL ERROR:", err);
+            console.log("ERROR RESPONSE:", err.response);
+            console.log("ERROR MESSAGE:", err.message);
+            
+            const errorMsg = err.response?.data?.detail || err.message || 'Verification failed';
+            setError(errorMsg);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -157,7 +191,7 @@ const StudentSignup = () => {
                                     className="form-control"
                                     placeholder="000000"
                                     value={otp}
-                                    onChange={e => setOtp(e.target.value)}
+                                    onChange={e => setOtp(e.target.value.replace(/\s/g, ''))}
                                     required
                                     maxLength={6}
                                 />
@@ -165,7 +199,13 @@ const StudentSignup = () => {
                         </div>
                         {error && <div className="error-message" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-                        <button type="submit" className="btn btn-primary">Verify Email</button>
+                        <button 
+                            type="submit" 
+                            className="btn btn-primary"
+                            disabled={loading}
+                        >
+                            {loading ? "Verifying..." : "Verify Email"}
+                        </button>
                         <button
                             type="button"
                             className="btn btn-outline"

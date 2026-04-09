@@ -38,7 +38,7 @@ def generate_otp():
 @router.post("/student/signup")
 async def student_signup(req: SignupRequest, background_tasks: BackgroundTasks):
     db = get_db()
-    email_str = str(req.email)
+    email_str = str(req.email).strip().lower()
     existing_user = db.users.find_one({"email": email_str})
     if existing_user and existing_user.get("is_verified"):
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -77,8 +77,12 @@ async def student_signup(req: SignupRequest, background_tasks: BackgroundTasks):
 @router.post("/student/verify-otp")
 async def verify_otp(req: VerifyRequest):
     db = get_db()
-    email_str = str(req.email)
+    email_str = str(req.email).strip().lower()
     otp_record = db.otps.find_one({"email": email_str})
+    
+    print(f"VERIFY_OTP DEBUG -> REQ EMAIL: '{email_str}' | REQ OTP: '{req.otp}'")
+    print(f"VERIFY_OTP DEBUG -> DB RECORD: {otp_record}")
+
     if not otp_record:
         raise HTTPException(status_code=400, detail="OTP not found or expired")
     
@@ -94,7 +98,20 @@ async def verify_otp(req: VerifyRequest):
     )
     db.otps.delete_one({"email": email_str})
     
-    return {"message": "Email verified successfully"}
+    # Auto-login after verification
+    user = db.users.find_one({"email": email_str})
+    role = user.get("role", "student")
+    name = user.get("name", "")
+    picture = user.get("picture", "")
+    
+    access_token = create_access_token({"sub": email_str, "role": role, "name": name, "picture": picture})
+    
+    return {
+        "message": "Email verified successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": role
+    }
 
 @router.post("/login", response_model=Token)
 async def unified_login(req: LoginRequest):
