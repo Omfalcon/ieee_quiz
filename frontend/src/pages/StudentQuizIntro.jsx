@@ -38,6 +38,10 @@ const StudentQuizIntro = () => {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -63,8 +67,46 @@ const StudentQuizIntro = () => {
       navigate(`/login?redirect=/student/quiz/${id}`);
       return;
     }
-    // navigate(`/student/quiz/${id}/play`);
-    alert("Starting quiz! (This feature is coming soon)");
+    
+    setDisplayName(user?.name || "");
+    setShowNamePrompt(true);
+  };
+
+  const handleConfirmStart = async () => {
+    if (!displayName.trim()) {
+      alert("Please enter a valid display name.");
+      return;
+    }
+    
+    setStarting(true);
+    try {
+      const token = localStorage.getItem("token");
+      
+      // 1. Update Display Name
+      const nameRes = await axios.patch(
+        `${API}/auth/student/me/name`, 
+        { name: displayName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Refresh local token token
+      if (nameRes.data.access_token) {
+        localStorage.setItem("token", nameRes.data.access_token);
+      }
+      
+      // 2. Attempt Quiz
+      await axios.post(
+        `${API}/quizzes/${id}/attempt`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      navigate(`/student/quiz/${id}/play`);
+    } catch (err) {
+      console.error(err);
+      alert("Error starting quiz: " + (err.response?.data?.detail || err.message));
+      setStarting(false);
+    }
   };
 
   if (loading) {
@@ -185,6 +227,68 @@ const StudentQuizIntro = () => {
               : "Quiz not yet live"}
         </button>
       </div>
+
+      {showNamePrompt && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
+          justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div style={{
+            background: "#fff", padding: "2rem", borderRadius: "12px",
+            width: "90%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: "0.5rem", color: "#1E293B" }}>
+              Confirm Display Name
+            </h3>
+            <p style={{ color: "#64748B", fontSize: "14px", marginBottom: "1.5rem", lineHeight: "1.5" }}>
+              This is the name that will appear on the leaderboard and participant list for this quiz.
+            </p>
+            
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "14px", fontWeight: "500", color: "#334155" }}>
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                style={{
+                  width: "100%", padding: "10px 14px", border: "1px solid #CBD5E1",
+                  borderRadius: "8px", fontSize: "16px", boxSizing: "border-box"
+                }}
+                disabled={starting}
+                autoFocus
+              />
+            </div>
+            
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowNamePrompt(false)}
+                disabled={starting}
+                style={{
+                  padding: "10px 16px", background: "transparent", border: "1px solid #CBD5E1",
+                  borderRadius: "6px", cursor: "pointer", color: "#64748B", fontWeight: "500"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmStart}
+                disabled={starting || !displayName.trim()}
+                style={{
+                  padding: "10px 16px", background: "#2563EB", border: "none",
+                  borderRadius: "6px", cursor: starting ? "not-allowed" : "pointer", 
+                  color: "#fff", fontWeight: "500", opacity: starting ? 0.7 : 1
+                }}
+              >
+                {starting ? "Starting..." : "Start Quiz"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

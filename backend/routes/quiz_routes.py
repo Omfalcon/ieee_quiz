@@ -1,18 +1,20 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
-from backend.database import get_quiz_collection, get_submissions_collection, serialize_quiz
+from backend.database import get_quiz_collection, get_submissions_collection, get_participants_collection, serialize_quiz
+from backend.utils.jwt_utils import get_current_user
 from datetime import datetime
 
 router = APIRouter()
 
 quiz_collection = None
 submissions_collection = None
-
+participants_collection = None
 
 def init_collections():
-    global quiz_collection, submissions_collection
+    global quiz_collection, submissions_collection, participants_collection
     quiz_collection = get_quiz_collection()
     submissions_collection = get_submissions_collection()
+    participants_collection = get_participants_collection()
 
 
 def _quiz_col():
@@ -27,6 +29,13 @@ def _sub_col():
     if submissions_collection is None:
         init_collections()
     return submissions_collection
+
+
+def _participants_col():
+    global participants_collection
+    if participants_collection is None:
+        init_collections()
+    return participants_collection
 
 
 def parse_dt(val) -> datetime | None:
@@ -91,15 +100,75 @@ def toggle_quiz(quiz_id: str):
 # ✅ DELETE QUIZ
 @router.delete("/quizzes/{quiz_id}")
 def delete_quiz(quiz_id: str):
-    try:
-        result = _quiz_col().delete_one({"_id": ObjectId(quiz_id)})
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+    
+    result = _quiz_col().delete_one({"_id": ObjectId(quiz_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Quiz not found")
-
+        
     return {"message": "Quiz deleted successfully"}
+
+
+# ✅ ATTEMPT QUIZ (STUDENT ENTRY POINT)
+@router.post("/quizzes/{quiz_id}/attempt")
+def attempt_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
+    quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    if quiz.get("status") != "live":
+        raise HTTPException(status_code=403, detail=f"Quiz is currently {quiz.get('status')} and cannot be attempted.")
+
+    email_str = current_user.get("sub")
+    if not email_str:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    # Check if participant record exists, if not create one
+    participant = _participants_col().find_one({"email": email_str, "quiz_id": quiz_id})
+    if participant:
+        if participant.get("completed"):
+            raise HTTPException(status_code=403, detail="You have already completed this quiz.")
+    else:
+        _participants_col().insert_one({
+            "email": email_str,
+            "quiz_id": quiz_id,
+            "start_time": datetime.utcnow(),
+            "completed": False
+        })
+        # Increment participant count on quiz
+        _quiz_col().update_one({"_id": ObjectId(quiz_id)}, {"$inc": {"participants": 1}})
+    
+    # Strip correct answers before sending
+    safe_quiz = serialize_quiz(quiz)
+    for q in safe_quiz.get("questions", []):
+        q.pop("correctAnswer", None)  # Prevent cheating by removing answer keys
+
+    return safe_quiz
+
+
+# ✅ SUBMIT QUIZ
+@router.post("/quizzes/{quiz_id}/submit")
+def submit_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
+    email_str = current_user.get("sub")
+    if not email_str:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    result = _participants_col().update_one(
+        {"email": email_str, "quiz_id": quiz_id},
+        {"$set": {"completed": True, "end_time": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Participant record not found")
+
+    return {"message": "Quiz submitted successfully"}
+
 
 
 # ✅ GET SINGLE QUIZ

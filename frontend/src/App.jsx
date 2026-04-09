@@ -10,6 +10,7 @@ import GoogleCallback from './components/GoogleCallback';
 
 import ManageQuizzes from './pages/ManageQuizzes';
 import StudentQuizIntro from './pages/StudentQuizIntro';
+import StudentQuizPlay from './pages/StudentQuizPlay';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           
           <Route path="/student/quiz/:id" element={<StudentQuizIntro />} />
+          <Route path="/student/quiz/:id/play" element={<StudentQuizPlay />} />
           
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<StudentSignup />} />

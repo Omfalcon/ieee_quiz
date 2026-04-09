@@ -12,8 +12,12 @@ from backend.models.user import (
     UserInDB, Token, LoginRequest, 
     SignupRequest, VerifyRequest
 )
-from backend.utils.jwt_utils import create_access_token
+from pydantic import BaseModel
+from backend.utils.jwt_utils import create_access_token, get_current_user
 from backend.utils.email_utils import send_otp_email
+
+class NameUpdateData(BaseModel):
+    name: str
 
 router = APIRouter()
 oauth = OAuth()
@@ -174,3 +178,23 @@ async def auth_google_callback(request: Request):
     
     redirect_path = request.query_params.get("state", "/student/dashboard")
     return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={jwt_token}&redirect={redirect_path}")
+
+@router.patch("/student/me/name")
+async def update_display_name(req: NameUpdateData, current_user: dict = Depends(get_current_user)):
+    db = get_db()
+    email_str = current_user.get("sub")
+    if not email_str:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    db.users.update_one({"email": email_str}, {"$set": {"name": req.name}})
+    
+    # Issue a new JWT because the 'name' is baked into the JWT payload
+    user = db.users.find_one({"email": email_str})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    role = user.get("role", "student")
+    picture = user.get("picture", "")
+    new_token = create_access_token({"sub": email_str, "role": role, "name": req.name, "picture": picture})
+    
+    return {"message": "Name updated successfully", "access_token": new_token}

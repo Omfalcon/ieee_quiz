@@ -31,6 +31,10 @@ def get_submissions_collection():
     return db["submissions"]
 
 
+def get_participants_collection():
+    return db["participants"]
+
+
 # ✅ SERIALIZER
 def serialize_quiz(quiz) -> dict:
     return {
