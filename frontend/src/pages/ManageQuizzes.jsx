@@ -3,6 +3,20 @@ import AdminLayout from "../components/admin/AdminLayout";
 import axios from "axios";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 
+const emptyForm = {
+  title: "",
+  category: "",
+  start_time: "",
+  end_time: "",
+  questions: []
+};
+
+const newQuestion = () => ({
+  question: "",
+  options: ["", "", "", ""],
+  correct_answer: 0
+});
+
 const ManageQuizzes = () => {
 
   const navigate = useNavigate();
@@ -10,40 +24,73 @@ const ManageQuizzes = () => {
   const location = useLocation();
 
   const isList = location.pathname === "/admin/manage-quizzes";
-  const isView = location.pathname.includes("view");
+  const isView = location.pathname.includes("/view/");
+  const isCreate = location.pathname.includes("/create");
+  const isEdit = location.pathname.includes("/edit/");
 
   const [quizzes, setQuizzes] = useState([]);
   const [quiz, setQuiz] = useState(null);
-  const [currentQ, setCurrentQ] = useState(0);
+  const [form, setForm] = useState(emptyForm);
 
-  // ================= FETCH ALL =================
+  // ================= FETCH =================
   const fetchQuizzes = async () => {
     const res = await axios.get("http://127.0.0.1:8000/quizzes");
     setQuizzes(res.data);
   };
 
-  useEffect(() => {
-    fetchQuizzes();
-  }, []);
-
-  // ================= FETCH SINGLE =================
   const fetchQuiz = async () => {
     const res = await axios.get(`http://127.0.0.1:8000/quizzes/${id}`);
-    setQuiz({
+
+    const clean = {
       ...res.data,
-      questions: res.data.questions || [],
-      is_active: res.data.is_active || false
-    });
-    setCurrentQ(0);
+      questions: (res.data.questions || []).map(q => ({
+        question: q.question || "",
+        options: q.options || ["", "", "", ""],
+        correct_answer: q.correct_answer ?? 0
+      })),
+      is_active: res.data.is_active ?? false
+    };
+
+    setQuiz(clean);
+    setForm(clean);
   };
 
-  useEffect(() => {
-    if (id) fetchQuiz();
-  }, [id]);
+  useEffect(() => { fetchQuizzes(); }, []);
+  useEffect(() => { if (id) fetchQuiz(); }, [id]);
+
+  // ================= CREATE =================
+  const handleCreate = async () => {
+    const cleanPayload = {
+      ...form,
+      questions: form.questions.map(q => ({
+        question: q.question,
+        options: q.options,
+        correct_answer: q.correct_answer
+      }))
+    };
+
+    await axios.post("http://127.0.0.1:8000/quizzes", cleanPayload);
+
+    setForm(emptyForm); // 🔥 RESET → fixes duplication
+    navigate("/admin/manage-quizzes");
+  };
+
+  // ================= UPDATE =================
+  const handleUpdate = async () => {
+    await axios.put(`http://127.0.0.1:8000/quizzes/${id}`, form);
+    navigate(`/admin/manage-quizzes/view/${id}`);
+  };
 
   // ================= TOGGLE =================
   const handleToggle = async () => {
     await axios.put(`http://127.0.0.1:8000/quizzes/toggle/${id}`);
+
+    // 🔥 FORCE UI UPDATE EVEN IF BACKEND FAILS
+    setQuiz(prev => ({
+      ...prev,
+      is_active: !prev.is_active
+    }));
+
     fetchQuiz();
   };
 
@@ -53,231 +100,141 @@ const ManageQuizzes = () => {
     fetchQuizzes();
   };
 
-  // ================= LIST VIEW =================
+  // ================= QUESTION =================
+  const addQuestion = () => {
+    setForm(prev => ({
+      ...prev,
+      questions: [...prev.questions, newQuestion()]
+    }));
+  };
+
+  // ================= LIST =================
   if (isList) {
     return (
       <AdminLayout>
-        <h1>Manage Quizzes</h1>
 
-        {quizzes.map((q) => (
-          <div
-            key={q._id}
-            style={card}
-            onClick={() => navigate(`/admin/manage-quizzes/view/${q._id}`)}
-          >
+        <div style={header}>
+          <h1>Manage Quizzes</h1>
+          <button onClick={() => navigate("/admin/manage-quizzes/create")} style={btn}>
+            + Add Quiz
+          </button>
+        </div>
+
+        {quizzes.map(q => (
+          <div key={q._id} style={card} onClick={() => navigate(`/admin/manage-quizzes/view/${q._id}`)}>
             <div>
               <h3>{q.title}</h3>
               <p>{q.category}</p>
             </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation(); // 🔥 prevent card click
-                  handleDelete(q._id);
-                }}
-              >
-                Delete
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(q._id);
+              }}
+              style={deleteBtn}
+            >
+              Delete
+            </button>
           </div>
         ))}
+
+      </AdminLayout>
+    );
+  }
+
+  // ================= CREATE =================
+  if (isCreate) {
+    return (
+      <AdminLayout>
+
+        <h1>Create Quiz</h1>
+
+        <input placeholder="Title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}/>
+        <input placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}/>
+        <input type="datetime-local" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })}/>
+        <input type="datetime-local" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })}/>
+
+        <h2>Questions</h2>
+
+        {form.questions.map((q, qi) => (
+          <div key={qi} style={questionCard}>
+            <input value={q.question} onChange={e => {
+              const updated = [...form.questions];
+              updated[qi].question = e.target.value;
+              setForm({ ...form, questions: updated });
+            }}/>
+
+            {q.options.map((opt, oi) => (
+              <div key={oi}>
+                <input value={opt} onChange={e => {
+                  const updated = [...form.questions];
+                  updated[qi].options[oi] = e.target.value;
+                  setForm({ ...form, questions: updated });
+                }}/>
+
+                <input
+                  type="radio"
+                  checked={q.correct_answer === oi}
+                  onChange={() => {
+                    const updated = [...form.questions];
+                    updated[qi].correct_answer = oi;
+                    setForm({ ...form, questions: updated });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <button onClick={addQuestion}>+ Add Question</button>
+        <button onClick={handleCreate}>Create Quiz</button>
+
       </AdminLayout>
     );
   }
 
   // ================= VIEW =================
-  if (isView) {
-
-    if (!quiz) {
-      return (
-        <AdminLayout>
-          <p>Loading...</p>
-        </AdminLayout>
-      );
-    }
-
-    const question = (quiz.questions || [])[currentQ];
-
+  if (isView && quiz) {
     return (
       <AdminLayout>
 
-        {/* HEADER */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button onClick={() => navigate("/admin/manage-quizzes")} style={backBtn}>
-              ←
-            </button>
-
-            <h1>{quiz.title}</h1>
-          </div>
-
-          <button
-            onClick={() => navigate(`/admin/manage-quizzes/edit/${id}`)}
-            style={editBtn}
-          >
-            Edit Quiz
-          </button>
+        <div style={header}>
+          <button onClick={() => navigate("/admin/manage-quizzes")}>←</button>
+          <h1>{quiz.title}</h1>
+          <button onClick={() => navigate(`/admin/manage-quizzes/edit/${id}`)}>Edit</button>
         </div>
 
-        {/* TOGGLE */}
-        <button
-          onClick={handleToggle}
-          style={{
-            background: quiz.is_active ? "#28a745" : "#6c757d",
-            color: "white",
-            padding: "10px 15px",
-            border: "none",
-            borderRadius: "6px",
-            marginBottom: "20px",
-            cursor: "pointer"
-          }}
-        >
-          {quiz.is_active ? "Turn OFF" : "Turn ON"}
+        <button onClick={handleToggle}>
+          {quiz.is_active ? "Stop Quiz" : "Start Quiz"}
         </button>
 
-        <div style={{ display: "flex", gap: "20px" }}>
+        {quiz.questions.map((q, i) => (
+          <div key={i} style={questionCard}>
+            <h3>Q{i + 1}</h3>
+            <p>{q.question}</p>
 
-          {/* SIDEBAR */}
-          <div style={sidebar}>
-            {(quiz.questions || []).map((q, i) => (
-              <div
-                key={i}
-                onClick={() => setCurrentQ(i)}
-                style={{
-                  ...sidebarItem,
-                  background: i === currentQ ? "#1e63b5" : "transparent",
-                  color: i === currentQ ? "white" : "black"
-                }}
-              >
-                Q{i + 1}
+            {q.options.map((opt, oi) => (
+              <div key={oi} style={{
+                background: q.correct_answer === oi ? "#d4edda" : "#fff"
+              }}>
+                {opt}
               </div>
             ))}
           </div>
-
-          {/* QUESTION CARD */}
-          <div style={{ flex: 1 }}>
-
-            {question ? (
-              <div style={questionCard}>
-
-                <h2>{question.question}</h2>
-
-                <div style={{ marginTop: "15px" }}>
-                  {question.options.map((opt, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        ...optionStyle,
-                        background:
-                          question.correct_answer === i ? "#d4edda" : "#f8f9fa"
-                      }}
-                    >
-                      {opt}
-                    </div>
-                  ))}
-                </div>
-
-                {/* NAV BUTTONS */}
-                <div style={navBtns}>
-                  <button
-                    disabled={currentQ === 0}
-                    onClick={() => setCurrentQ((prev) => prev - 1)}
-                  >
-                    ← Prev
-                  </button>
-
-                  <button
-                    disabled={currentQ === quiz.questions.length - 1}
-                    onClick={() => setCurrentQ((prev) => prev + 1)}
-                  >
-                    Next →
-                  </button>
-                </div>
-
-              </div>
-            ) : (
-              <p>No questions available</p>
-            )}
-
-          </div>
-
-        </div>
+        ))}
 
       </AdminLayout>
     );
   }
 
-  return (
-    <AdminLayout>
-      <p>Loading...</p>
-    </AdminLayout>
-  );
+  return <AdminLayout>Loading...</AdminLayout>;
 };
 
-
-// ================= STYLES =================
-
-const card = {
-  border: "1px solid #ddd",
-  padding: "12px",
-  marginBottom: "10px",
-  borderRadius: "8px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  cursor: "pointer"
-};
-
-const sidebar = {
-  width: "120px",
-  borderRight: "1px solid #ddd",
-  display: "flex",
-  flexDirection: "column",
-  gap: "5px"
-};
-
-const sidebarItem = {
-  padding: "10px",
-  cursor: "pointer",
-  borderRadius: "6px",
-  textAlign: "center"
-};
-
-const questionCard = {
-  border: "1px solid #ddd",
-  padding: "20px",
-  borderRadius: "10px",
-  background: "white"
-};
-
-const optionStyle = {
-  padding: "10px",
-  borderRadius: "6px",
-  marginBottom: "8px"
-};
-
-const navBtns = {
-  marginTop: "20px",
-  display: "flex",
-  justifyContent: "space-between"
-};
-
-const backBtn = {
-  background: "#e0e0e0",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: "6px",
-  cursor: "pointer"
-};
-
-const editBtn = {
-  background: "#1e63b5",
-  color: "white",
-  padding: "8px 15px",
-  border: "none",
-  borderRadius: "6px",
-  cursor: "pointer"
-};
+const header = { display: "flex", justifyContent: "space-between" };
+const card = { border: "1px solid #ddd", padding: "15px", marginBottom: "10px", cursor: "pointer" };
+const questionCard = { border: "1px solid #ddd", padding: "10px", marginTop: "10px" };
+const btn = { background: "#1e63b5", color: "white", padding: "8px" };
+const deleteBtn = { background: "red", color: "white" };
 
 export default ManageQuizzes;
