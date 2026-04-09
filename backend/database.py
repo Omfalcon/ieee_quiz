@@ -42,5 +42,6 @@ def serialize_quiz(quiz) -> dict:
         "end_time": quiz.get("end_time"),
         "participants": quiz.get("participants", 0),
         "questions": quiz.get("questions", []),
-        "is_active": quiz.get("is_active", False)
+        "is_active": quiz.get("is_active", False),
+        "status": quiz.get("status", "scheduled")
     }

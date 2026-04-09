@@ -20,16 +20,10 @@ const mkQuestion = () => ({
   correct_answer: 0,
 });
 
-// ─── Status derivation (time-based, not is_active flag) ───
+// ─── Status: read directly from DB field (live / scheduled / finished) ───
 const getStatus = (quiz) => {
-  if (!quiz?.start_time || !quiz?.end_time) return "Draft";
-  const now = new Date();
-  const s = new Date(quiz.start_time);
-  const e = new Date(quiz.end_time);
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Draft";
-  if (now < s) return "Scheduled";
-  if (now >= s && now <= e) return "Live";
-  return "Finished";
+  const s = quiz?.status || "scheduled";
+  return s.charAt(0).toUpperCase() + s.slice(1); // "live" → "Live"
 };
 
 const fmtDT = (val) => {
@@ -812,20 +806,14 @@ const ManageQuizzes = () => {
     }
 
     const status = getStatus(quiz);
-    const sc = STATUS_MAP[status] || STATUS_MAP.Draft;
+    const sc = STATUS_MAP[status] || STATUS_MAP.Scheduled;
     const canShowLeaderboard =
       status === "Live" || status === "Finished";
     const currentQ = quiz.questions[selQ] ?? null;
 
-    // Toggle button label + style based on time-derived status
+    // Toggle button: Live → "End Quiz" (danger), else → "Go Live" (success)
     const toggleLabel =
-      status === "Live"
-        ? "End Quiz"
-        : status === "Scheduled"
-        ? "Go Live Now"
-        : status === "Finished"
-        ? "Re-activate"
-        : "Start Quiz";
+      status === "Live" ? "End Quiz" : "Go Live Now";
 
     const toggleStyle =
       status === "Live" ? S.btnDanger : S.btnSuccess;

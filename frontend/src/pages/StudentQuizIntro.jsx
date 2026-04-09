@@ -54,15 +54,17 @@ const StudentQuizIntro = () => {
   }, [id]);
 
   const handleStart = () => {
+    if (quiz.status !== "live") {
+      alert(`This quiz is currently ${quiz.status}. You can only attempt a quiz when it is Live.`);
+      return;
+    }
     if (!user) {
       alert("Please sign in or sign up first to attempt the quiz!");
       navigate("/signup");
       return;
     }
-
-    // Next step is to actually play the quiz, we can mock this for now or redirect to an actual attempt component if it exists.
-    alert("Starting quiz! (This feature is coming soon)");
     // navigate(`/student/quiz/${id}/play`);
+    alert("Starting quiz! (This feature is coming soon)");
   };
 
   if (loading) {
@@ -148,30 +150,39 @@ const StudentQuizIntro = () => {
           </div>
           <div>
             <div style={{ fontSize: "12px", color: "#64748B", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>Status</div>
-            <div style={{ fontSize: "15px", color: quiz.is_active ? "#16A34A" : "#D97706", fontWeight: "600" }}>
-              {quiz.is_active ? "Active" : "Inactive / Scheduled"}
+            <div style={{
+              fontSize: "15px",
+              fontWeight: "600",
+              color: quiz.status === "live" ? "#16A34A" : quiz.status === "finished" ? "#6c757d" : "#D97706"
+            }}>
+              {quiz.status ? quiz.status.charAt(0).toUpperCase() + quiz.status.slice(1) : "Scheduled"}
             </div>
           </div>
         </div>
 
         <button 
           onClick={handleStart}
+          disabled={quiz.status !== "live"}
           style={{
             width: "100%",
-            background: "#2563EB",
+            background: quiz.status === "live" ? "#2563EB" : "#94A3B8",
             color: "#fff",
             border: "none",
             borderRadius: "8px",
             padding: "14px",
             fontSize: "16px",
             fontWeight: "600",
-            cursor: "pointer",
+            cursor: quiz.status === "live" ? "pointer" : "not-allowed",
             transition: "background 0.2s"
           }}
-          onMouseOver={(e) => e.target.style.background = "#1D4ED8"}
-          onMouseOut={(e) => e.target.style.background = "#2563EB"}
+          onMouseOver={(e) => { if (quiz.status === "live") e.target.style.background = "#1D4ED8"; }}
+          onMouseOut={(e) => { if (quiz.status === "live") e.target.style.background = "#2563EB"; }}
         >
-          {user ? "Attempt Quiz Now" : "Sign up to Attempt Quiz"}
+          {quiz.status === "live"
+            ? (user ? "Attempt Quiz Now" : "Sign up to Attempt Quiz")
+            : quiz.status === "finished"
+            ? "This quiz has ended"
+            : "Quiz not yet live"}
         </button>
       </div>
     </div>

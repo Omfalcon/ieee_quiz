@@ -55,45 +55,33 @@ def create_quiz(quiz: dict):
     quiz["questions"] = quiz.get("questions", [])
     quiz["participants"] = 0
     quiz["is_active"] = False
+    quiz["status"] = "scheduled"   # always start as scheduled
 
     result = _quiz_col().insert_one(quiz)
     new_quiz = _quiz_col().find_one({"_id": result.inserted_id})
     return serialize_quiz(new_quiz)
 
 
-# ✅ TOGGLE QUIZ STATUS — time-based logic with proper datetime parsing
+# ✅ TOGGLE QUIZ STATUS — cycles through scheduled → live → finished
 @router.put("/quizzes/toggle/{quiz_id}")
 def toggle_quiz(quiz_id: str):
     quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    current_status = quiz.get("is_active", False)
-    new_status = not current_status
+    current_status = quiz.get("status", "scheduled")
 
-    update_data: dict = {"is_active": new_status}
-
-    now = datetime.now()
-    start = parse_dt(quiz.get("start_time"))
-    end = parse_dt(quiz.get("end_time"))
-
-    if new_status:
-        # Turning ON
-        # If still scheduled (start in future) → make live now
-        if start and start > now:
-            update_data["start_time"] = now.strftime("%Y-%m-%dT%H:%M")
-        # If already finished (end in past) → extend end to end of today
-        if end and end < now:
-            eod = now.replace(hour=23, minute=59, second=0, microsecond=0)
-            update_data["end_time"] = eod.strftime("%Y-%m-%dT%H:%M")
+    # Toggle: scheduled/finished → live, live → finished
+    if current_status == "live":
+        new_status = "finished"
+        new_is_active = False
     else:
-        # Turning OFF — if currently live, snap end_time to now
-        if start and start <= now and end and end >= now:
-            update_data["end_time"] = now.strftime("%Y-%m-%dT%H:%M")
+        new_status = "live"
+        new_is_active = True
 
     _quiz_col().update_one(
         {"_id": ObjectId(quiz_id)},
-        {"$set": update_data}
+        {"$set": {"status": new_status, "is_active": new_is_active}}
     )
 
     updated = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
@@ -132,7 +120,7 @@ def get_quiz(quiz_id: str):
 @router.put("/quizzes/{quiz_id}")
 def update_quiz(quiz_id: str, updated_data: dict):
     # Remove fields that must not be overwritten
-    for field in ("_id", "participants", "is_active"):
+    for field in ("_id", "participants", "is_active", "status"):
         updated_data.pop(field, None)
 
     try:
