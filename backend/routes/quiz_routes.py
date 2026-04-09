@@ -146,6 +146,8 @@ def attempt_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
     # Check if participant record exists, if not create one
     participant = _participants_col().find_one({"email": email_str, "quiz_id": quiz_id})
     if participant:
+        if participant.get("kicked"):
+            raise HTTPException(status_code=403, detail="You have been banned from this quiz.")
         if participant.get("completed"):
             raise HTTPException(status_code=403, detail="You have already completed this quiz.")
     else:
@@ -197,6 +199,8 @@ def submit_quiz(
     participant = _participants_col().find_one({"email": email_str, "quiz_id": quiz_id})
     if not participant:
         raise HTTPException(status_code=404, detail="No attempt record found. Call /attempt first.")
+    if participant.get("kicked"):
+        raise HTTPException(status_code=403, detail="You have been banned from this quiz.")
     if participant.get("completed"):
         raise HTTPException(status_code=403, detail="Quiz already submitted.")
 
@@ -322,23 +326,37 @@ def update_quiz(quiz_id: str, updated_data: dict):
     return serialize_quiz(updated_quiz)
 
 
-# ✅ LEADERBOARD — ranked by score desc, time_taken asc
+# ✅ LEADERBOARD — ranked by score desc, time_taken_seconds asc
 @router.get("/quizzes/{quiz_id}/leaderboard")
 def get_leaderboard(quiz_id: str):
     try:
-        subs = list(
-            _sub_col().find({"quiz_id": quiz_id}).sort([("score", -1), ("time_taken", 1)])
+        # Fetch completed participants sorted exactly as rules demand
+        records = list(
+            _participants_col().find({"quiz_id": quiz_id, "completed": True})
+            .sort([("score", -1), ("time_taken_seconds", 1)])
         )
-        leaderboard = [
-            {
+        
+        # We need names! We could do a manual merge here since list is likely small.
+        # Alternatively we could use aggregation framework, but python merge is fine.
+        from backend.database import get_db
+        db = get_db()
+        users_in_quiz = {u["email"]: u for u in db.users.find({"email": {"$in": [r["email"] for r in records]}})}
+        
+        leaderboard = []
+        for i, s in enumerate(records):
+            email = s.get("email")
+            user_doc = users_in_quiz.get(email, {})
+            leaderboard.append({
                 "rank": i + 1,
-                "name": s.get("student_name", "Anonymous"),
-                "email": s.get("student_email", ""),
+                "name": user_doc.get("name") or "Anonymous",
+                "email": email,
                 "score": s.get("score", 0),
-                "time_taken": s.get("time_taken", None),
-            }
-            for i, s in enumerate(subs)
-        ]
+                "percentage": s.get("percentage", 0),
+                "time_taken_seconds": s.get("time_taken_seconds", 0),
+                "picture": user_doc.get("picture", "")
+            })
+            
         return {"leaderboard": leaderboard, "total": len(leaderboard)}
-    except Exception:
+    except Exception as e:
+        print(f"Error fetching leaderboard: {e}")
         return {"leaderboard": [], "total": 0}

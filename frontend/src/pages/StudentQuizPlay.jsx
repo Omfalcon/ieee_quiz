@@ -41,11 +41,14 @@ const StudentQuizPlay = () => {
 
   /* ── fetch quiz ── */
   useEffect(() => {
-    if (!user) { navigate(`/login?redirect=/student/quiz/${id}/play`); return; }
+    const token = localStorage.getItem('token');
+    if (!token) { 
+      navigate(`/login?redirect=/student/quiz/${id}/play`); 
+      return; 
+    }
 
     const load = async () => {
       try {
-        const token = localStorage.getItem('token');
         const res = await axios.post(
           `${API}/quizzes/${id}/attempt`, {},
           { headers: { Authorization: `Bearer ${token}` } }
@@ -70,6 +73,33 @@ const StudentQuizPlay = () => {
   /* ── keep refs in sync with state ── */
   useEffect(() => { answersRef.current = answers; }, [answers]);
   useEffect(() => { answerMetaRef.current = answerMeta; }, [answerMeta]);
+
+  /* ── websocket connection ── */
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Use ws:// for http, wss:// for https
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//127.0.0.1:8000/ws/quiz/${id}?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.action === 'KICKED') {
+          alert('You have been banned from this quiz by the administrator.');
+          navigate('/student/dashboard');
+        }
+      } catch (err) {
+        console.error("WS Parse error", err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [id, navigate]);
 
   /* ── timer ── */
   useEffect(() => {

@@ -62,7 +62,11 @@ const StudentQuizIntro = () => {
       alert(`This quiz is currently ${quiz.status}. You can only attempt a quiz when it is Live.`);
       return;
     }
-    if (!user) {
+    
+    const token = localStorage.getItem("token");
+    if (!user || !token) {
+      // Force clear any stale state
+      localStorage.removeItem("token");
       // Send to login, carry quiz URL so login bounces back here
       navigate(`/login?redirect=/student/quiz/${id}`);
       return;

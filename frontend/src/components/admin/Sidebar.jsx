@@ -50,12 +50,12 @@ const Sidebar = () => {
           <span>Manage Quizzes</span>
         </div>
 
-        <div style={itemStyle}>
+        <div style={itemStyle} onClick={() => navigate('/admin/users')}>
           <Users size={18} />
           <span>User Management</span>
         </div>
 
-        <div style={itemStyle}>
+        <div style={itemStyle} onClick={() => navigate('/admin/live-sessions')}>
           <Video size={18} />
           <span>Live Sessions</span>
         </div>

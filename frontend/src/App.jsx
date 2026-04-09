@@ -9,6 +9,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GoogleCallback from './components/GoogleCallback';
 
 import ManageQuizzes from './pages/ManageQuizzes';
+import UserManagement from './pages/UserManagement';
+import LiveSessions from './pages/LiveSessions';
 import StudentQuizIntro from './pages/StudentQuizIntro';
 import StudentQuizPlay from './pages/StudentQuizPlay';
 
@@ -18,16 +20,19 @@ function App() {
       <AuthProvider>
         <Routes>
 
-            <Route path="/admin/manage-quizzes" element={<ManageQuizzes />} />
-            <Route path="/admin/manage-quizzes/edit/:id" element={<ManageQuizzes />} />
-            <Route path="/admin/manage-quizzes/view/:id" element={<ManageQuizzes />} />
+            <Route path="/admin/manage-quizzes" element={<ProtectedRoute roleRequired="admin"><ManageQuizzes /></ProtectedRoute>} />
+            <Route path="/admin/manage-quizzes/edit/:id" element={<ProtectedRoute roleRequired="admin"><ManageQuizzes /></ProtectedRoute>} />
+            <Route path="/admin/manage-quizzes/view/:id" element={<ProtectedRoute roleRequired="admin"><ManageQuizzes /></ProtectedRoute>} />
 
-            <Route path="/admin/manage-quizzes/create" element={<ManageQuizzes />} />
+            <Route path="/admin/manage-quizzes/create" element={<ProtectedRoute roleRequired="admin"><ManageQuizzes /></ProtectedRoute>} />
+            
+            <Route path="/admin/users" element={<ProtectedRoute roleRequired="admin"><UserManagement /></ProtectedRoute>} />
+            <Route path="/admin/live-sessions" element={<ProtectedRoute roleRequired="admin"><LiveSessions /></ProtectedRoute>} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
           
           <Route path="/student/quiz/:id" element={<StudentQuizIntro />} />
-          <Route path="/student/quiz/:id/play" element={<StudentQuizPlay />} />
+          <Route path="/student/quiz/:id/play" element={<ProtectedRoute><StudentQuizPlay /></ProtectedRoute>} />
           
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<StudentSignup />} />
@@ -36,13 +41,13 @@ function App() {
           <Route 
             path="/student/dashboard" 
             element={
-                <StudentDashboard />
+                <ProtectedRoute roleRequired="student"><StudentDashboard /></ProtectedRoute>
             }
           />
           
           <Route
             path="/admin/dashboard"
-            element={<AdminDashboard />}
+            element={<ProtectedRoute roleRequired="admin"><AdminDashboard /></ProtectedRoute>}
           />
           
         </Routes>
