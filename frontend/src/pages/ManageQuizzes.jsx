@@ -7,6 +7,7 @@ const API = "http://127.0.0.1:8000";
 
 const EMPTY_FORM = {
   title: "",
+  description: "",
   category: "",
   start_time: "",
   end_time: "",
@@ -45,6 +46,15 @@ const fmtDT = (val) => {
   } catch {
     return String(val);
   }
+};
+
+const calcDuration = (start, end) => {
+  if (!start || !end) return "—";
+  const s = new Date(start);
+  const e = new Date(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return "—";
+  const diffMins = Math.round((e - s) / 60000);
+  return diffMins > 0 ? `${diffMins} min` : "—";
 };
 
 // ─── Design tokens ───
@@ -210,7 +220,7 @@ const ManageQuizzes = () => {
   // CRITICAL FIX: always reset form to blank when navigating to /create
   useEffect(() => {
     if (isCreate) {
-      setForm({ title: "", category: "", start_time: "", end_time: "", questions: [] });
+      setForm({ title: "", description: "", category: "", start_time: "", end_time: "", questions: [] });
     }
   }, [isCreate]);
 
@@ -236,7 +246,8 @@ const ManageQuizzes = () => {
     try {
       const payload = {
         title:      form.title.trim(),
-        category:   form.category.trim(),
+        description:form.description?.trim() || "",
+        category:   form.category?.trim() || "",
         start_time: form.start_time,
         end_time:   form.end_time,
         questions:  form.questions.map((q) => ({
@@ -246,6 +257,7 @@ const ManageQuizzes = () => {
         })),
       };
       await axios.post(`${API}/quizzes`, payload);
+      await fetchQuizzes();
       setForm({ ...EMPTY_FORM });
       navigate("/admin/manage-quizzes");
     } catch {
@@ -474,6 +486,20 @@ const ManageQuizzes = () => {
                       padding: "7px 14px",
                       fontSize: "13px",
                     }}
+                    onClick={() => {
+                      const link = `${window.location.origin}/student/quiz/${q._id}`;
+                      navigator.clipboard.writeText(link);
+                      alert("Attempt link copied to clipboard!");
+                    }}
+                  >
+                    Copy Link
+                  </button>
+                  <button
+                    style={{
+                      ...S.btnSecondary,
+                      padding: "7px 14px",
+                      fontSize: "13px",
+                    }}
                     onClick={() =>
                       navigate(`/admin/manage-quizzes/edit/${q._id}`)
                     }
@@ -546,6 +572,17 @@ const ManageQuizzes = () => {
                   value={form.category}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, category: e.target.value }))
+                  }
+                />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={S.label}>Description</label>
+                <textarea
+                  style={{...S.input, minHeight: "80px", resize: "vertical"}}
+                  placeholder="Enter a description for the quiz..."
+                  value={form.description || ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
                   }
                 />
               </div>
@@ -843,6 +880,16 @@ const ManageQuizzes = () => {
             </div>
 
             <div style={S.row}>
+              <button
+                style={{...S.btnSecondary, background: "#fff"}}
+                onClick={() => {
+                  const link = `${window.location.origin}/student/quiz/${id}`;
+                  navigator.clipboard.writeText(link);
+                  alert("Attempt link copied to clipboard!");
+                }}
+              >
+                Copy Link
+              </button>
               <button style={toggleStyle} onClick={handleToggle}>
                 {toggleLabel}
               </button>
@@ -858,11 +905,17 @@ const ManageQuizzes = () => {
           </div>
 
           {/* ── Info strip ── */}
+          {quiz.description && (
+            <div style={{...S.card, marginBottom: "18px", color: COLOR.text, fontSize: "14px"}}>
+              <strong style={{display: "block", marginBottom: "6px", fontSize: "12px", color: COLOR.muted, textTransform: "uppercase", letterSpacing: "0.5px"}}>Description</strong>
+              {quiz.description}
+            </div>
+          )}
           <div
             style={{
               ...S.card,
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: "repeat(5, 1fr)",
               padding: 0,
               overflow: "hidden",
               marginBottom: "18px",
@@ -871,6 +924,7 @@ const ManageQuizzes = () => {
             {[
               { label: "Start Time",   value: fmtDT(quiz.start_time) },
               { label: "End Time",     value: fmtDT(quiz.end_time) },
+              { label: "Duration",     value: calcDuration(quiz.start_time, quiz.end_time) },
               { label: "Questions",    value: quiz.questions.length },
               { label: "Participants", value: quiz.participants ?? 0 },
             ].map((item, i) => (

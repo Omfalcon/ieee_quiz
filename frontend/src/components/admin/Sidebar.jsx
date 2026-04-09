@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 const Sidebar = () => {
+  const navigate = useNavigate();
 
   const itemStyle = {
     display: "flex",
@@ -38,12 +40,12 @@ const Sidebar = () => {
       {/* MENU */}
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 
-        <div style={itemStyle}>
+        <div style={itemStyle} onClick={() => navigate('/admin/dashboard')}>
           <LayoutDashboard size={18} />
           <span>Dashboard</span>
         </div>
 
-        <div style={itemStyle}>
+        <div style={itemStyle} onClick={() => navigate('/admin/manage-quizzes')}>
           <FileText size={18} />
           <span>Manage Quizzes</span>
         </div>
