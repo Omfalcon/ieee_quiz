@@ -27,11 +27,17 @@ const StudentQuizPlay = () => {
   const [alreadyDone, setAlreadyDone] = useState(false);
 
   const [currentIdx, setCurrentIdx]  = useState(0);
-  const [answers, setAnswers]        = useState({});
+  const [answers, setAnswers]        = useState({});   // { qIdx: optionText }
+  const [answerMeta, setAnswerMeta]  = useState({});   // { qIdx: { at: ISOStr, elapsed: secs } }
   const [timeLeft, setTimeLeft]      = useState(0);
   const [submitted, setSubmitted]    = useState(false);
+  const [submitResult, setSubmitResult] = useState(null); // score data from server
   const [submitting, setSubmitting]  = useState(false);
-  const timerRef = useRef(null);
+  const timerRef    = useRef(null);
+  const quizStartAt = useRef(null);  // epoch ms when quiz loaded
+  const doSubmitRef = useRef(null);  // always points to latest doSubmit
+  const answersRef  = useRef({});    // mirrors answers state — readable from stale closures
+  const answerMetaRef = useRef({});  // mirrors answerMeta state
 
   /* ── fetch quiz ── */
   useEffect(() => {
@@ -45,6 +51,7 @@ const StudentQuizPlay = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setQuiz(res.data);
+        quizStartAt.current = Date.now();
 
         const now = Date.now();
         const end = new Date(res.data.end_time).getTime();
@@ -60,12 +67,21 @@ const StudentQuizPlay = () => {
     load();
   }, [id, user, navigate]);
 
+  /* ── keep refs in sync with state ── */
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { answerMetaRef.current = answerMeta; }, [answerMeta]);
+
   /* ── timer ── */
   useEffect(() => {
     if (loading || timeLeft <= 0 || submitted) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) { clearInterval(timerRef.current); doSubmit(); return 0; }
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          // Use ref so we always call the latest doSubmit with fresh state
+          doSubmitRef.current?.();
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -79,27 +95,55 @@ const StudentQuizPlay = () => {
     clearInterval(timerRef.current);
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${API}/quizzes/${id}/submit`, {},
+      // Read from refs so this works even in stale-closure (timer) context
+      const currentAnswers = answersRef.current;
+      const currentMeta    = answerMetaRef.current;
+
+      const answerList = Object.entries(currentAnswers).map(([qIdx, selectedOption]) => {
+        const meta = currentMeta[Number(qIdx)] || {};
+        return {
+          question_index:   Number(qIdx),
+          selected_option:  selectedOption,
+          answered_at:      meta.at || new Date().toISOString(),
+          elapsed_seconds:  meta.elapsed || 0,
+        };
+      });
+
+      const res = await axios.post(
+        `${API}/quizzes/${id}/submit`,
+        { answers: answerList },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      setSubmitResult(res.data);
       setSubmitted(true);
     } catch (e) {
       console.error(e);
+      alert('Submission failed: ' + (e.response?.data?.detail || e.message));
     } finally {
       setSubmitting(false);
     }
   };
+  // Keep the ref pointing to the latest version of doSubmit
+  doSubmitRef.current = doSubmit;
 
-  const handleSelect = (qIdx, opt) =>
+  const handleSelect = (qIdx, opt) => {
+    const now = new Date();
+    const elapsedSecs = quizStartAt.current
+      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+      : 0;
     setAnswers(prev => ({ ...prev, [qIdx]: opt }));
+    setAnswerMeta(prev => ({
+      ...prev,
+      [qIdx]: { at: now.toISOString(), elapsed: elapsedSecs }
+    }));
+  };
 
   /* ── loading / error screens ── */
   if (loading) return <Splash msg="Loading your quiz…" />;
   if (alreadyDone) return <AlreadyDoneScreen navigate={navigate} />;
   if (error) return <Splash msg={error} isError />;
   if (!quiz?.questions?.length) return <Splash msg="This quiz has no questions." />;
-  if (submitted) return <SubmittedScreen quiz={quiz} answers={answers} navigate={navigate} />;
+  if (submitted) return <SubmittedScreen quiz={quiz} answers={answers} result={submitResult} navigate={navigate} />;
 
   const total = quiz.questions.length;
   const currentQ = quiz.questions[currentIdx];
@@ -354,52 +398,50 @@ const AlreadyDoneScreen = ({ navigate }) => (
 );
 
 /* ── SubmittedScreen ────────────────────────────────────────────── */
-const SubmittedScreen = ({ quiz, answers, navigate }) => {
-  const total = quiz.questions.length;
-  const answered = Object.keys(answers).length;
+const SubmittedScreen = ({ quiz, answers, result, navigate }) => {
+  const total    = quiz.questions.length;
+  const answered = result?.answered ?? Object.keys(answers).length;
   return (
     <div style={{
-      display:'flex',justifyContent:'center',alignItems:'center',
-      height:'100vh',background:'#0f172a',fontFamily:'Inter,sans-serif'
+      display:'flex', justifyContent:'center', alignItems:'center',
+      height:'100vh', background:'#0f172a', fontFamily:'Inter,sans-serif'
     }}>
       <div style={{
-        background:'linear-gradient(135deg,#1e293b,#0f172a)',borderRadius:'20px',padding:'48px',
-        textAlign:'center',maxWidth:'480px',width:'90%',
-        border:'1px solid #1e3a5f',boxShadow:'0 25px 50px rgba(0,0,0,0.5)'
+        background:'linear-gradient(135deg,#1e293b,#0f172a)', borderRadius:'20px', padding:'48px',
+        textAlign:'center', maxWidth:'400px', width:'90%',
+        border:'1px solid #1e3a5f', boxShadow:'0 25px 50px rgba(0,0,0,0.5)'
       }}>
-        <div style={{fontSize:'60px',marginBottom:'20px'}}>🎉</div>
-        <h2 style={{color:'#f1f5f9',fontSize:'26px',fontWeight:700,marginBottom:'8px'}}>
+        <div style={{fontSize:'64px', marginBottom:'16px'}}>🎉</div>
+        <h2 style={{color:'#f1f5f9', fontSize:'24px', fontWeight:700, marginBottom:'12px'}}>
           Quiz Submitted!
         </h2>
-        <p style={{color:'#94a3b8',marginBottom:'32px',lineHeight:'1.6'}}>
-          You answered <strong style={{color:'#34d399'}}>{answered}</strong> out of{' '}
-          <strong style={{color:'#f1f5f9'}}>{total}</strong> questions.
+        <p style={{color:'#94a3b8', fontSize:'15px', lineHeight:'1.7', marginBottom:'32px'}}>
+          You attempted{' '}
+          <strong style={{color:'#60a5fa', fontSize:'20px'}}>{answered}</strong>
+          {' '}out of{' '}
+          <strong style={{color:'#f1f5f9', fontSize:'20px'}}>{total}</strong>
+          {' '}questions.
         </p>
-        <div style={{
-          display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px',marginBottom:'32px'
-        }}>
-          {[
-            {label:'Total Questions',val:total,icon:'❓'},
-            {label:'Answered',val:answered,icon:'✅'},
-          ].map(({label,val,icon})=>(
-            <div key={label} style={{
-              background:'#0f172a',borderRadius:'12px',padding:'16px',border:'1px solid #1e293b'
-            }}>
-              <div style={{fontSize:'24px'}}>{icon}</div>
-              <div style={{fontSize:'24px',fontWeight:700,color:'#60a5fa',marginTop:'4px'}}>{val}</div>
-              <div style={{fontSize:'12px',color:'#64748b',marginTop:'2px'}}>{label}</div>
-            </div>
-          ))}
+        <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+          <button
+            onClick={() => navigate(`/student/quiz/${quiz._id}/leaderboard`)}
+            style={{
+              width:'100%', padding:'13px',
+              background:'linear-gradient(135deg,#7c3aed,#6d28d9)',
+              border:'none', borderRadius:'10px', color:'#fff',
+              fontWeight:600, fontSize:'15px', cursor:'pointer'
+            }}
+          >🏆 View Leaderboard</button>
+          <button
+            onClick={() => navigate('/student/dashboard')}
+            style={{
+              width:'100%', padding:'13px',
+              background:'#1e293b', border:'1px solid #334155',
+              borderRadius:'10px', color:'#94a3b8',
+              fontWeight:500, fontSize:'15px', cursor:'pointer'
+            }}
+          >Back to Dashboard</button>
         </div>
-        <button
-          onClick={() => navigate('/student/dashboard')}
-          style={{
-            width:'100%',padding:'14px',
-            background:'linear-gradient(135deg,#2563eb,#1d4ed8)',
-            border:'none',borderRadius:'10px',color:'#fff',
-            fontWeight:600,fontSize:'16px',cursor:'pointer'
-          }}
-        > Back to Dashboard </button>
       </div>
     </div>
   );

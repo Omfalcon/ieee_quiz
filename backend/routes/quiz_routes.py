@@ -1,20 +1,29 @@
 from fastapi import APIRouter, HTTPException, Depends
+from typing import List, Optional
+from pydantic import BaseModel
 from bson import ObjectId
-from backend.database import get_quiz_collection, get_submissions_collection, get_participants_collection, serialize_quiz
+from pymongo import UpdateOne
+from backend.database import (
+    get_quiz_collection, get_submissions_collection,
+    get_participants_collection, get_quiz_responses_collection,
+    serialize_quiz
+)
 from backend.utils.jwt_utils import get_current_user
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
 quiz_collection = None
 submissions_collection = None
 participants_collection = None
+responses_collection = None
 
 def init_collections():
-    global quiz_collection, submissions_collection, participants_collection
+    global quiz_collection, submissions_collection, participants_collection, responses_collection
     quiz_collection = get_quiz_collection()
     submissions_collection = get_submissions_collection()
     participants_collection = get_participants_collection()
+    responses_collection = get_quiz_responses_collection()
 
 
 def _quiz_col():
@@ -36,6 +45,13 @@ def _participants_col():
     if participants_collection is None:
         init_collections()
     return participants_collection
+
+
+def _responses_col():
+    global responses_collection
+    if responses_collection is None:
+        init_collections()
+    return responses_collection
 
 
 def parse_dt(val) -> datetime | None:
@@ -151,8 +167,25 @@ def attempt_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
 
 
 # ✅ SUBMIT QUIZ
+# Schema: quiz_responses has ONE document per (email, quiz_id).
+# answers is an embedded array → clean, simple, leaderboard-ready.
+# Unique index on (email, quiz_id) makes upsert idempotent (double-submit = no-op).
+
+class AnswerPayload(BaseModel):
+    question_index: int      # 0-based position in quiz.questions
+    selected_option: str     # option text the student chose
+    answered_at: str         # ISO-8601 timestamp from client
+    elapsed_seconds: int     # seconds from quiz start to this selection
+
+class SubmitPayload(BaseModel):
+    answers: List[AnswerPayload]
+
 @router.post("/quizzes/{quiz_id}/submit")
-def submit_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
+def submit_quiz(
+    quiz_id: str,
+    payload: SubmitPayload,
+    current_user: dict = Depends(get_current_user)
+):
     if not ObjectId.is_valid(quiz_id):
         raise HTTPException(status_code=400, detail="Invalid quiz ID")
 
@@ -160,14 +193,96 @@ def submit_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
     if not email_str:
         raise HTTPException(status_code=401, detail="Invalid token payload")
 
-    result = _participants_col().update_one(
-        {"email": email_str, "quiz_id": quiz_id},
-        {"$set": {"completed": True, "end_time": datetime.utcnow()}}
-    )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Participant record not found")
+    # Guard: must have started the quiz
+    participant = _participants_col().find_one({"email": email_str, "quiz_id": quiz_id})
+    if not participant:
+        raise HTTPException(status_code=404, detail="No attempt record found. Call /attempt first.")
+    if participant.get("completed"):
+        raise HTTPException(status_code=403, detail="Quiz already submitted.")
 
-    return {"message": "Quiz submitted successfully"}
+    # Fetch quiz for correct-answer scoring
+    quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    questions = quiz.get("questions", [])
+
+    now_utc = datetime.now(timezone.utc)
+    score = 0
+    answers_arr = []
+
+    for ans in payload.answers:
+        idx = ans.question_index
+        selected = ans.selected_option.strip()
+
+        try:
+            answered_at = datetime.fromisoformat(ans.answered_at.replace("Z", "+00:00"))
+        except Exception:
+            answered_at = now_utc
+
+        if 0 <= idx < len(questions):
+            correct = str(questions[idx].get("correctAnswer", "")).strip()
+            is_correct = (selected == correct)
+            q_text = questions[idx].get("question", "")
+        else:
+            is_correct = False
+            q_text = ""
+
+        if is_correct:
+            score += 1
+
+        answers_arr.append({
+            "question_index": idx,
+            "question_text": q_text,
+            "selected_option": selected,
+            "answered_at": answered_at,
+            "elapsed_seconds": ans.elapsed_seconds,
+            "is_correct": is_correct,
+        })
+
+    # ── Write ONE document into quiz_responses ──────────────────────────────
+    # $setOnInsert fires only on first write → prevents overwrite on double-submit
+    _responses_col().update_one(
+        {"email": email_str, "quiz_id": quiz_id},
+        {
+            "$setOnInsert": {
+                "email": email_str,
+                "quiz_id": quiz_id,
+                "submitted_at": now_utc,
+                "answers": answers_arr,
+            }
+        },
+        upsert=True
+    )
+
+    # ── Update participants row ─────────────────────────────────────────────
+    total_questions = len(questions)
+    answered_count = len(answers_arr)
+    start_time = participant.get("start_time")
+    if start_time and start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
+    time_taken = int((now_utc - start_time).total_seconds()) if start_time else 0
+
+    _participants_col().update_one(
+        {"email": email_str, "quiz_id": quiz_id},
+        {"$set": {
+            "completed": True,
+            "end_time": now_utc,
+            "score": score,
+            "total_questions": total_questions,
+            "answered_questions": answered_count,
+            "time_taken_seconds": time_taken,
+            "percentage": round((score / total_questions) * 100, 2) if total_questions else 0,
+        }}
+    )
+
+    return {
+        "message": "Quiz submitted successfully",
+        "answered": answered_count,
+        "total": total_questions,
+        "score": score,
+        "percentage": round((score / total_questions) * 100, 2) if total_questions else 0,
+        "time_taken_seconds": time_taken,
+    }
 
 
 

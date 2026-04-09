@@ -4,7 +4,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.routes import auth
 from backend.config import settings
-from backend.database import connect_db, close_db
+from backend.database import connect_db, close_db, create_indexes
 from backend.routes.quiz_routes import router as quiz_router
 
 app = FastAPI(title="IEEE UPES QuizHub API")
@@ -34,6 +34,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET)
 @app.on_event("startup")
 def startup_db_client():
     connect_db()
+    create_indexes()   # enforce unique constraints + create leaderboard indexes
 
 
 @app.on_event("shutdown")
