@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GoogleCallback from './components/GoogleCallback';
 
 import ManageQuizzes from './pages/ManageQuizzes';
+import QuizAttempt from './pages/QuizAttempt';
 
 function App() {
   return (
@@ -21,6 +22,9 @@ function App() {
             <Route path="/admin/manage-quizzes/view/:id" element={<ManageQuizzes />} />
 
             <Route path="/admin/manage-quizzes/create" element={<ManageQuizzes />} />
+
+          {/* Student quiz attempt — public route (auth handled inside) */}
+          <Route path="/quiz/:quizId" element={<QuizAttempt />} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
           

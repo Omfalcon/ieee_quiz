@@ -160,6 +160,11 @@ const ManageQuizzes = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [footfall,    setFootfall]    = useState(0);
   const [loading,     setLoading]     = useState(false);
+  const [aiTopic,     setAiTopic]     = useState("");
+  const [aiDiff,      setAiDiff]      = useState("medium");
+  const [aiCount,     setAiCount]     = useState(5);
+  const [aiLoading,   setAiLoading]   = useState(false);
+  const [copied,      setCopied]      = useState(false);
   const pollRef = useRef(null);
 
   // ─── Fetch helpers ───
@@ -306,6 +311,46 @@ const ManageQuizzes = () => {
     } catch {
       alert("Failed to delete quiz.");
     }
+  };
+
+  // ─── AI question generation ───
+  const handleGenerateAI = async () => {
+    if (!aiTopic.trim()) return alert("Please enter a topic for AI generation");
+    setAiLoading(true);
+    try {
+      const res = await axios.post(`${API}/generate-questions`, {
+        topic:      aiTopic.trim(),
+        difficulty: aiDiff,
+        count:      Number(aiCount),
+      });
+      const generated = res.data.questions || [];
+      // Validate structure before appending — never corrupt existing questions
+      const safe = generated.filter(
+        (q) =>
+          q &&
+          typeof q.question === "string" &&
+          Array.isArray(q.options) &&
+          q.options.length === 4 &&
+          typeof q.correct_answer === "number"
+      );
+      if (safe.length === 0) return alert("AI returned no valid questions. Try again.");
+      setForm((p) => ({ ...p, questions: [...p.questions, ...safe] }));
+      setAiTopic("");
+    } catch (err) {
+      const msg = err.response?.data?.detail || "AI generation failed. Is API_KEY set in backend/.env?";
+      alert(msg);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // ─── Copy shareable link ───
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/quiz/${id}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
   };
 
   // ─── Question form helpers ───
@@ -571,6 +616,72 @@ const ManageQuizzes = () => {
                   }
                 />
               </div>
+            </div>
+          </div>
+
+          {/* ── AI Question Generator ── */}
+          <div style={{ ...S.card, marginBottom: "16px", marginTop: "4px" }}>
+            <div style={{ ...S.between, marginBottom: "14px" }}>
+              <div>
+                <h2 style={{ ...S.h2, margin: 0 }}>🧠 AI Question Generator</h2>
+                <p style={{ fontSize: "12px", color: COLOR.muted, marginTop: "4px" }}>
+                  Generated questions are appended — existing questions are never overwritten.
+                </p>
+              </div>
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 160px 100px auto",
+                gap: "10px",
+                alignItems: "flex-end",
+              }}
+            >
+              <div>
+                <label style={S.label}>Topic</label>
+                <input
+                  style={S.input}
+                  placeholder="e.g. Python Data Types"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerateAI()}
+                />
+              </div>
+              <div>
+                <label style={S.label}>Difficulty</label>
+                <select
+                  style={{ ...S.input, cursor: "pointer" }}
+                  value={aiDiff}
+                  onChange={(e) => setAiDiff(e.target.value)}
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>Count</label>
+                <input
+                  style={S.input}
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={aiCount}
+                  onChange={(e) => setAiCount(e.target.value)}
+                />
+              </div>
+              <button
+                style={{
+                  ...S.btnPrimary,
+                  background: aiLoading ? COLOR.muted : "#7C3AED",
+                  whiteSpace: "nowrap",
+                  opacity: aiLoading ? 0.75 : 1,
+                }}
+                disabled={aiLoading}
+                onClick={handleGenerateAI}
+              >
+                {aiLoading ? "Generating…" : "Generate ✨"}
+              </button>
             </div>
           </div>
 
@@ -845,6 +956,17 @@ const ManageQuizzes = () => {
             <div style={S.row}>
               <button style={toggleStyle} onClick={handleToggle}>
                 {toggleLabel}
+              </button>
+              <button
+                style={{
+                  ...S.btnSecondary,
+                  background: copied ? "#F0FDF4" : undefined,
+                  color: copied ? COLOR.success : undefined,
+                  border: copied ? "1px solid #BBF7D0" : undefined,
+                }}
+                onClick={handleCopyLink}
+              >
+                {copied ? "✓ Copied!" : "🔗 Copy Link"}
               </button>
               <button
                 style={S.btnSecondary}

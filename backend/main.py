@@ -6,11 +6,15 @@ from backend.routes import auth
 from backend.config import settings
 from backend.database import connect_db, close_db
 from backend.routes.quiz_routes import router as quiz_router
+from backend.routes.ai_routes import router as ai_router
+from backend.routes.attempt_routes import router as attempt_router
 
 app = FastAPI(title="IEEE UPES QuizHub API")
 
 # ✅ ROUTES
 app.include_router(quiz_router)
+app.include_router(ai_router)
+app.include_router(attempt_router)
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 # ✅ CORS
