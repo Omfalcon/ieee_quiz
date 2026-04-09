@@ -13,21 +13,109 @@ const StudentDashboard = () => {
   });
 
   const [quizzes, setQuizzes] = useState([
-    { id: 1, title: '5G Network Architecture', type: 'quiz', status: 'LIVE', duration: '30 min', timeRemaining: '15 min' },
-    { id: 2, title: '5G Network Architecture', type: 'quiz', status: 'LIVE', duration: '30 min', timeRemaining: '20 min' },
-    { id: 3, title: 'Quiz Title Scheduling 1', status: 'upcoming', scheduledDate: 'Oct 28', scheduledTime: '10 AM GMT', duration: '30 min' },
-    { id: 4, title: 'Quiz Title Scheduling 2', status: 'upcoming', scheduledDate: 'Oct 28', scheduledTime: '10 AM GMT', duration: '30 min' },
-    { id: 5, title: 'Quiz Title Scheduling 3', status: 'upcoming', scheduledDate: 'Oct 28', scheduledTime: '10 AM GMT', duration: '30 min' },
-    { id: 6, title: 'Quiz Title 5G Network Architecture', status: 'completed', completionDate: 'Oct 28, 2021', score: 92, totalMarks: 100 },
-    { id: 7, title: 'Quiz Title 5G Retesting 2', status: 'completed', completionDate: 'Oct 28, 2021', score: 92, totalMarks: 100 },
-    { id: 8, title: 'Quiz Title 5G Retesting 3', status: 'completed', completionDate: 'Oct 28, 2021', score: 92, totalMarks: 100 },
-    { id: 9, title: 'Quiz Title 5G Converting 4', status: 'completed', completionDate: 'Oct 28, 2021', score: 92, totalMarks: 100 },
-    { id: 10, title: 'Quiz Title 5G Converting 5', status: 'completed', completionDate: 'Oct 28, 2021', score: 92, totalMarks: 100 }
+    // Live Quizzes
+    {
+      id: 1,
+      title: '5G Network Architecture',
+      type: 'quiz',
+      status: 'LIVE',
+      duration: '30 min',
+      timeRemaining: '15 min'
+    },
+    {
+      id: 2,
+      title: '5G Network Architecture',
+      type: 'quiz',
+      status: 'LIVE',
+      duration: '30 min',
+      timeRemaining: '20 min'
+    },
+    // Upcoming Quizzes
+    {
+      id: 3,
+      title: 'Quiz Title Scheduling 1',
+      status: 'upcoming',
+      scheduledDate: 'Oct 28',
+      scheduledTime: '10 AM GMT',
+      duration: '30 min'
+    },
+    {
+      id: 4,
+      title: 'Quiz Title Scheduling 2',
+      status: 'upcoming',
+      scheduledDate: 'Oct 28',
+      scheduledTime: '10 AM GMT',
+      duration: '30 min'
+    },
+    {
+      id: 5,
+      title: 'Quiz Title Scheduling 3',
+      status: 'upcoming',
+      scheduledDate: 'Oct 28',
+      scheduledTime: '10 AM GMT',
+      duration: '30 min'
+    },
+    // Completed Quizzes
+    {
+      id: 6,
+      title: 'Quiz Title 5G Network Architecture',
+      status: 'completed',
+      completionDate: 'Oct 28, 2021',
+      score: 92,
+      totalMarks: 100
+    },
+    {
+      id: 7,
+      title: 'Quiz Title 5G Retesting 2',
+      status: 'completed',
+      completionDate: 'Oct 28, 2021',
+      score: 92,
+      totalMarks: 100
+    },
+    {
+      id: 8,
+      title: 'Quiz Title 5G Retesting 3',
+      status: 'completed',
+      completionDate: 'Oct 28, 2021',
+      score: 92,
+      totalMarks: 100
+    },
+    {
+      id: 9,
+      title: 'Quiz Title 5G Converting 4',
+      status: 'completed',
+      completionDate: 'Oct 28, 2021',
+      score: 92,
+      totalMarks: 100
+    },
+    {
+      id: 10,
+      title: 'Quiz Title 5G Converting 5',
+      status: 'completed',
+      completionDate: 'Oct 28, 2021',
+      score: 92,
+      totalMarks: 100
+    }
   ]);
+
+  useEffect(() => {
+    // Fetch user data and quizzes from backend
+    // const fetchData = async () => {
+    //   try {
+    //     const response = await fetch('/api/student/dashboard');
+    //     const data = await response.json();
+    //     setUserData(data.userData);
+    //     setQuizzes(data.quizzes);
+    //   } catch (error) {
+    //     console.error('Error fetching dashboard data:', error);
+    //   }
+    // };
+    // fetchData();
+  }, []);
 
   return (
     <div className="dashboard-container">
-      {/* 1. SIDEBAR */}
+      {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="ieee-blue-text">IEEE</span> QuizHub
@@ -41,8 +129,9 @@ const StudentDashboard = () => {
         </nav>
       </aside>
 
-      {/* 2. MAIN CONTENT */}
+      {/* MAIN CONTENT */}
       <main className="main-content">
+        {/* Welcome Banner */}
         <header className="welcome-banner">
           <h1>WELCOME BACK, {userData.name}</h1>
           <div className="stats-row">
@@ -52,9 +141,10 @@ const StudentDashboard = () => {
           </div>
         </header>
 
+        {/* Dashboard Content */}
         <div className="dashboard-content-inner">
+          {/* Top Grid: Live + Upcoming */}
           <div className="dashboard-top-grid">
-            
             {/* LIVE QUIZZES SECTION */}
             <section className="dashboard-card">
               <div className="section-header">
@@ -62,7 +152,6 @@ const StudentDashboard = () => {
                 <span className="ieee-brand-tag">IEEE</span>
               </div>
               <div className="card-body">
-                {/* Fixed: Added filtered data prop */}
                 <LiveQuizzes quizzes={quizzes.filter(q => q.status === 'LIVE')} />
               </div>
             </section>
@@ -74,11 +163,9 @@ const StudentDashboard = () => {
                 <span className="ieee-brand-tag">IEEE</span>
               </div>
               <div className="card-body">
-                {/* Fixed: Added filtered data prop */}
                 <UpcomingQuizzes quizzes={quizzes.filter(q => q.status === 'upcoming')} />
               </div>
             </section>
-
           </div>
 
           {/* PREVIOUS QUIZZES SECTION */}

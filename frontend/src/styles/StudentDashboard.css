@@ -1,204 +1,445 @@
 /* ============================================
-   1. CORE THEME & VARIABLES
+   IEEE QUIZHUB - STUDENT DASHBOARD
+   Matches reference image exactly
    ============================================ */
+
 :root {
   --ieee-blue: #00629b;
   --ieee-light-blue: #00b5e2;
   --ieee-red: #ed1c24;
   --ieee-green: #28a745;
-  --bg-gray: #f4f7f9; /* Used only for subtle contrast if needed */
-  --card-bg: #ffffff;
-  --border-color: #e1e4e8;
-  --text-primary: #333;
+  --text-dark: #1a1a1a;
   --text-secondary: #666;
+  --border-light: #e1e4e8;
+  --bg-light: #f8f9fa;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: white;
 }
 
 /* ============================================
-   2. FULL SCREEN LAYOUT (Edge-to-Edge White)
+   MAIN DASHBOARD CONTAINER
    ============================================ */
 .dashboard-container {
   display: flex;
-  width: 100%;
+  width: 100vw;
   min-height: 100vh;
-  background-color: #ffffff; /* Forces full white background */
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-}
-
-.sidebar {
-  width: 250px;
-  background-color: #ffffff;
-  border-right: 1px solid #eee;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #ffffff; /* Ensure no blue/gray borders on sides */
-  min-width: 0; 
+  background: white;
 }
 
 /* ============================================
-   3. SIDEBAR STYLING (Top-Left Logo)
+   SIDEBAR
    ============================================ */
+.sidebar {
+  width: 250px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
 .sidebar-logo {
-  padding: 30px 24px;
-  font-size: 22px;
+  padding: 28px 24px;
+  font-size: 18px;
   font-weight: 800;
+  color: #1a1a1a;
+  border-bottom: 1px solid #e0e0e0;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-logo .ieee-blue-text {
   color: var(--ieee-blue);
-  border-bottom: 1px solid #eee;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  padding: 20px 0;
+  padding: 16px 0;
 }
 
 .nav-item {
-  padding: 14px 24px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 12px 24px;
+  font-size: 13px;
+  font-weight: 500;
   color: #555;
   cursor: pointer;
-  border-left: 4px solid transparent;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background: #f5f5f5;
 }
 
 .nav-item.active {
-  background-color: #e6f0f7;
+  background: #e8f1f8;
   color: var(--ieee-blue);
-  border-left: 4px solid var(--ieee-blue);
+  border-left: 3px solid var(--ieee-blue);
+  font-weight: 600;
 }
 
 /* ============================================
-   4. WELCOME BANNER (Clean Blue Block)
+   MAIN CONTENT AREA
+   ============================================ */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  min-width: 0;
+}
+
+/* ============================================
+   WELCOME BANNER
    ============================================ */
 .welcome-banner {
-  background: var(--ieee-blue);
+  background: linear-gradient(135deg, var(--ieee-blue) 0%, #005080 100%);
   color: white;
-  padding: 32px 40px;
-  width: 100%;
+  padding: 36px 48px;
 }
 
 .welcome-banner h1 {
-  margin: 0 0 8px 0;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.5px;
 }
 
 .stats-row {
   display: flex;
-  gap: 18px;
+  gap: 24px;
   font-size: 14px;
-  opacity: 0.9;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+.stats-separator {
+  opacity: 0.6;
 }
 
 /* ============================================
-   5. SECTION HEADERS (The Diamond Look)
+   MAIN CONTENT INNER (Dashboard Content Area)
    ============================================ */
 .dashboard-content-inner {
-  padding: 40px;
-  width: 100%;
+  flex: 1;
+  padding: 40px 48px;
+  overflow-y: auto;
 }
 
+/* ============================================
+   TOP GRID (Live Quizzes + Upcoming)
+   ============================================ */
 .dashboard-top-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 30px;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap: 32px;
   margin-bottom: 40px;
 }
 
+/* ============================================
+   DASHBOARD CARD
+   ============================================ */
+.dashboard-card {
+  background: white;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   SECTION HEADER (Diamond icon + Title)
+   ============================================ */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 18px 24px;
   border-bottom: 2px solid var(--ieee-blue);
-  background: #ffffff;
+  background: #fafafa;
 }
 
 .section-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  color: #1a1a1a;
+  color: var(--text-dark);
   text-transform: uppercase;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .section-title::before {
   content: '◆';
   color: var(--ieee-blue);
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.ieee-brand-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ieee-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  background: #f0f5fa;
+  border-radius: 3px;
 }
 
 /* ============================================
-   6. CARDS & QUIZ ELEMENTS
+   QUIZ CARD (Individual Quiz in Live Section)
    ============================================ */
-.dashboard-card {
+.quiz-card {
   background: white;
-  border: 1px solid #eef0f2;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
   overflow: hidden;
+  transition: box-shadow 0.2s ease;
 }
 
-.quizzes-grid {
+.quiz-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-card-header {
+  background: #f8f9fa;
+  padding: 16px;
+  border-bottom: 1px solid #e8e8e8;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.quiz-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  flex: 1;
+}
+
+.status-badge-live {
+  background: var(--ieee-red);
+  color: white;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.quiz-card-body {
+  padding: 16px;
+  flex: 1;
+}
+
+.quiz-info-row {
+  display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 24px;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.info-icon {
+  font-size: 14px;
+}
+
+.info-label {
+  font-weight: 500;
+}
+
+.time-remaining-text {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+.quiz-card-footer {
+  padding: 0;
+  border-top: 1px solid #e8e8e8;
 }
 
 .join-now-btn {
   width: 100%;
-  background-color: var(--ieee-blue);
+  background: var(--ieee-blue);
   color: white;
   border: none;
   padding: 12px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   text-transform: uppercase;
   cursor: pointer;
+  transition: background 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.join-now-btn:hover {
+  background: #004a75;
+}
+
+.join-now-btn:active {
+  transform: scale(0.98);
 }
 
 /* ============================================
-   7. TABLES & GHOST BUTTONS
+   QUIZZES GRID (For Live Quizzes)
    ============================================ */
+.quizzes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+
+.no-quizzes {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 13px;
+}
+
+/* ============================================
+   TABLES (Upcoming & Previous)
+   ============================================ */
+.table-responsive {
+  overflow-x: auto;
+}
+
 .ieee-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ieee-table thead {
+  background: #f8f9fa;
 }
 
 .ieee-table th {
-  background-color: #f8f9fa;
-  padding: 14px 20px;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
+  padding: 14px 16px;
   text-align: left;
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--text-dark);
+  text-transform: uppercase;
   border-bottom: 1px solid #dee2e6;
+  letter-spacing: 0.4px;
+}
+
+.ieee-table tbody tr {
+  border-bottom: 1px solid #e8e8e8;
+  transition: background 0.2s ease;
+}
+
+.ieee-table tbody tr:hover {
+  background: #f8f9fa;
 }
 
 .ieee-table td {
-  padding: 14px 20px;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+}
+
+.quiz-title-cell {
+  color: var(--ieee-blue);
+  font-weight: 600;
+}
+
+.quiz-info-cell {
+  font-size: 12px;
+  color: #666;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* ============================================
+   SCORE CELL (Upcoming Quizzes)
+   ============================================ */
+.score-cell {
+  font-weight: 600;
+  color: var(--ieee-blue);
+}
+
+.score-flex-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-text {
+  min-width: 60px;
+  font-weight: 700;
+  color: var(--ieee-blue);
+}
+
+.score-progress-bg {
+  flex: 1;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 150px;
+}
+
+.score-progress-fill {
+  height: 100%;
+  background: var(--ieee-green);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+.register-btn-small {
+  background: var(--ieee-blue);
+  color: white;
+  border: none;
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.register-btn-small:hover {
+  background: #004a75;
 }
 
 .quiz-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .action-link {
@@ -208,10 +449,17 @@
   padding: 6px 12px;
   font-size: 10px;
   font-weight: 800;
-  border-radius: 4px;
-  text-transform: uppercase;
+  border-radius: 3px;
   cursor: pointer;
+  text-transform: uppercase;
   white-space: nowrap;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.action-link:hover {
+  background: var(--ieee-blue);
+  color: white;
 }
 
 .action-link.download-cert {
@@ -219,12 +467,209 @@
   color: var(--ieee-green);
 }
 
-.action-link:hover {
-  background-color: var(--ieee-blue);
+.action-link.download-cert:hover {
+  background: var(--ieee-green);
   color: white;
 }
 
-.action-link.download-cert:hover {
-  background-color: var(--ieee-green);
-  color: white;
+/* ============================================
+   PREVIOUS SECTION (Full Width)
+   ============================================ */
+.previous-section {
+  margin-top: 0;
+}
+
+/* ============================================
+   ACTIONS CELL
+   ============================================ */
+.quiz-actions-cell {
+  text-align: center;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 1200px) {
+  .dashboard-top-grid {
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+  }
+
+  .dashboard-content-inner {
+    padding: 32px;
+  }
+}
+
+@media (max-width: 992px) {
+  .dashboard-top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    width: 200px;
+  }
+
+  .welcome-banner {
+    padding: 24px 32px;
+  }
+
+  .welcome-banner h1 {
+    font-size: 24px;
+  }
+
+  .stats-row {
+    font-size: 13px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    flex-direction: row;
+  }
+
+  .sidebar-logo {
+    padding: 16px 24px;
+    border-bottom: none;
+    border-right: 1px solid #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    padding: 0;
+    flex: 1;
+  }
+
+  .nav-item {
+    padding: 12px 16px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+  }
+
+  .nav-item.active {
+    border-left: none;
+    border-bottom: 3px solid var(--ieee-blue);
+  }
+
+  .welcome-banner {
+    padding: 24px;
+  }
+
+  .welcome-banner h1 {
+    font-size: 20px;
+  }
+
+  .stats-row {
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-content-inner {
+    padding: 24px;
+  }
+
+  .dashboard-top-grid {
+    gap: 20px;
+  }
+
+  .section-header {
+    padding: 16px;
+  }
+
+  .section-title {
+    font-size: 11px;
+  }
+
+  .ieee-table {
+    font-size: 12px;
+  }
+
+  .ieee-table th,
+  .ieee-table td {
+    padding: 10px;
+  }
+
+  .quizzes-grid {
+    padding: 16px;
+  }
+
+  .quiz-card {
+    margin-bottom: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-banner {
+    padding: 16px;
+  }
+
+  .welcome-banner h1 {
+    font-size: 18px;
+  }
+
+  .stats-row {
+    font-size: 11px;
+    gap: 8px;
+  }
+
+  .dashboard-content-inner {
+    padding: 16px;
+  }
+
+  .dashboard-top-grid {
+    gap: 16px;
+  }
+
+  .ieee-table {
+    font-size: 11px;
+  }
+
+  .ieee-table th,
+  .ieee-table td {
+    padding: 8px;
+  }
+
+  .quiz-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .action-link {
+    width: 100%;
+    display: block;
+  }
+
+  .section-title {
+    font-size: 10px;
+  }
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
 }

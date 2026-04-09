@@ -1,8 +1,13 @@
 import React from 'react';
 
 const UpcomingQuizzes = ({ quizzes = [] }) => {
-  // Filter directly from props for cleaner code
   const upcomingQuizzes = quizzes.filter(quiz => quiz.status === 'upcoming');
+
+  const handleRegister = (quizId, quizTitle) => {
+    console.log(`Registering for quiz: ${quizId} - ${quizTitle}`);
+    // Call API to register for quiz
+    // window.location.href = `/quiz/${quizId}/register`;
+  };
 
   return (
     <div className="upcoming-quizzes-container">
@@ -21,12 +26,14 @@ const UpcomingQuizzes = ({ quizzes = [] }) => {
               {upcomingQuizzes.map((quiz) => (
                 <tr key={quiz.id}>
                   <td className="quiz-title-cell">{quiz.title}</td>
-                  <td className="quiz-info-cell">{quiz.scheduledDate}, {quiz.scheduledTime}</td>
+                  <td className="quiz-info-cell">
+                    {quiz.scheduledDate}, {quiz.scheduledTime}
+                  </td>
                   <td className="quiz-info-cell">{quiz.duration}</td>
                   <td className="text-center">
                     <button 
                       className="register-btn-small"
-                      onClick={() => console.log(`Registering for: ${quiz.id}`)}
+                      onClick={() => handleRegister(quiz.id, quiz.title)}
                     >
                       REGISTER
                     </button>

@@ -2,8 +2,8 @@ import React from 'react';
 import QuizCard from './QuizCard';
 
 const LiveQuizzes = ({ quizzes = [] }) => {
-  // We can filter directly in the render or use the prop passed from Dashboard
   const liveQuizzes = quizzes.filter(quiz => quiz.status === 'LIVE');
+
   return (
     <div className="live-quizzes-container">
       {liveQuizzes && liveQuizzes.length > 0 ? (
@@ -17,8 +17,11 @@ const LiveQuizzes = ({ quizzes = [] }) => {
               timeRemaining={quiz.timeRemaining}
               status="LIVE"
               actionLabel="JOIN NOW"
-              // Pass the ID so the handler knows which quiz to open
-              onAction={() => console.log(`Joining quiz: ${quiz.id}`)}
+              onAction={() => {
+                console.log(`Joining quiz: ${quiz.id} - ${quiz.title}`);
+                // Navigate to quiz or open quiz interface
+                // window.location.href = `/quiz/${quiz.id}`;
+              }}
             />
           ))}
         </div>
