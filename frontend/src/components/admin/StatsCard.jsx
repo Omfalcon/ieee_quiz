@@ -1,5 +1,4 @@
-import React from "react";
-import { Users, FileText, Calendar, Activity } from "lucide-react";
+import { Users, FileText, Calendar, Activity, PlayCircle, CheckCircle, ClipboardList } from "lucide-react";
 
 const StatsCard = ({ title, value }) => {
   return (
@@ -20,9 +19,11 @@ const StatsCard = ({ title, value }) => {
         <p
           style={{
             marginBottom: "8px",
-            fontSize: "16px",
-            fontWeight: "600",
-            color: "#000"
+            fontSize: "14px",
+            fontWeight: "700",
+            color: "#6b7280",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px"
           }}
         >
           {title}
@@ -32,8 +33,9 @@ const StatsCard = ({ title, value }) => {
         <h2
           style={{
             margin: 0,
-            fontSize: "30px",
-            fontWeight: "700"
+            fontSize: "28px",
+            fontWeight: "800",
+            color: "#111827"
           }}
         >
           {value}
@@ -41,10 +43,15 @@ const StatsCard = ({ title, value }) => {
       </div>
 
       {/* ICON */}
-      {title === "Total Active Users" && <Users size={24} />}
-      {title === "Total Quizzes" && <FileText size={24} />}
-      {title === "Upcoming Sessions" && <Calendar size={24} />}
-      {title === "Platform Engagement" && <Activity size={24} />}
+      <div style={{ color: "#1e63b5" }}>
+        {title === "Total Active Users" && <Users size={24} />}
+        {title === "Total Quizzes" && <ClipboardList size={24} />}
+        {title === "Upcoming Sessions" && <Calendar size={24} />}
+        {title === "Platform Engagement" && <Activity size={24} />}
+        {title === "Live Quizzes" && <PlayCircle size={24} />}
+        {title === "Finished Quizzes" && <CheckCircle size={24} />}
+        {title === "Scheduled Quizzes" && <Calendar size={24} />}
+      </div>
     </div>
   );
 };

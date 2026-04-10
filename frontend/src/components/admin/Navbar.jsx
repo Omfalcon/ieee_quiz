@@ -1,7 +1,9 @@
-import React from "react";
-import { Search, Bell } from "lucide-react";
+import React, { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
 const Navbar = () => {
+  const { user } = useContext(AuthContext);
+
   return (
     <div
       style={{
@@ -10,56 +12,25 @@ const Navbar = () => {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "0 30px", // ⬅️ slightly increased for better spacing
+        padding: "0 30px",
         color: "white"
       }}
     >
-      {/* LEFT → LOGO */}
-      <img
-        src="/images/ieee-logo.png"
-        alt="IEEE Logo"
-        style={{
-          height: "55px",
-          objectFit: "contain"
-        }}
-      />
-
-      {/* CENTER → SEARCH */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          background: "white",
-          padding: "6px 10px",
-          borderRadius: "6px",
-          width: "250px"
-        }}
-      >
-        <Search size={16} color="gray" />
-        <input
-          type="text"
-          placeholder="Search..."
-          style={{
-            border: "none",
-            outline: "none",
-            marginLeft: "8px",
-            width: "100%"
-          }}
-        />
+      {/* LEFT → BRANDING */}
+      <div style={{ fontSize: "20px", fontWeight: "800", letterSpacing: "0.5px" }}>
+        IEEE Quiz Hub
       </div>
 
-      {/* RIGHT → ICON + ADMIN + PROFILE */}
+      {/* RIGHT → PROFILE */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "12px", // ⬅️ tighter spacing
-          marginRight: "10px" // ⬅️ shifts slightly left
+          gap: "12px",
+          marginRight: "10px"
         }}
       >
-        <Bell size={20} />
-
-        <span style={{ fontWeight: "500" }}>Admin</span>
+        <span style={{ fontWeight: "500" }}>{user?.name || 'Admin'}</span>
 
         {/* PROFILE CIRCLE */}
         <div
@@ -75,7 +46,7 @@ const Navbar = () => {
             fontWeight: "600"
           }}
         >
-          A
+          {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
         </div>
       </div>
     </div>

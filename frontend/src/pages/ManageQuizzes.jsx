@@ -2,6 +2,19 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import axios from "axios";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { 
+  ClipboardList, 
+  FileText, 
+  Users, 
+  Plus, 
+  ArrowLeft, 
+  Trophy, 
+  CheckCircle,
+  Copy,
+  Trash2,
+  Edit3,
+  FileSignature
+} from "lucide-react";
 
 const API = "http://127.0.0.1:8000";
 
@@ -218,19 +231,14 @@ const ManageQuizzes = () => {
     }
   }, [isCreate]);
 
-  // Leaderboard polling for live / finished quizzes
+  // Leaderboard fetch for live / finished quizzes (Static only)
   useEffect(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
     if (isView && quiz) {
       const status = getStatus(quiz);
       if (status === "Live" || status === "Finished") {
         fetchLeaderboard();
-        if (status === "Live") {
-          pollRef.current = setInterval(fetchLeaderboard, 5000);
-        }
       }
     }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [isView, quiz, fetchLeaderboard]);
 
   // ─── Mutations ───
@@ -378,7 +386,7 @@ const ManageQuizzes = () => {
               style={S.btnPrimary}
               onClick={() => navigate("/admin/manage-quizzes/create")}
             >
-              + Add Quiz
+              Create New Quiz
             </button>
           </div>
 
@@ -394,12 +402,14 @@ const ManageQuizzes = () => {
                 background: COLOR.bg,
               }}
             >
-              <div style={{ fontSize: "44px", marginBottom: "12px" }}>📋</div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", color: COLOR.faint }}>
+                <ClipboardList size={48} />
+              </div>
               <p style={{ fontWeight: "600", fontSize: "15px", color: COLOR.muted }}>
                 No quizzes yet
               </p>
               <p style={{ fontSize: "13px", marginTop: "6px" }}>
-                Click "Add Quiz" to create your first quiz
+                Click "Create New Quiz" to start your first quiz
               </p>
             </div>
           )}
@@ -439,10 +449,11 @@ const ManageQuizzes = () => {
                       background: "#EFF6FF",
                       display: "flex", alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "20px", flexShrink: 0,
+                      color: COLOR.primary,
+                      flexShrink: 0,
                     }}
                   >
-                    📝
+                    <FileSignature size={20} />
                   </div>
                   <div>
                     <div
@@ -481,8 +492,8 @@ const ManageQuizzes = () => {
                         {(q.questions || []).length} Q
                       </span>
                       {(q.participants ?? 0) > 0 && (
-                        <span style={{ fontSize: "12px", color: COLOR.faint }}>
-                          · 👥 {q.participants}
+                        <span style={{ fontSize: "12px", color: COLOR.faint, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          · <Users size={12} /> {q.participants}
                         </span>
                       )}
                     </div>
@@ -509,10 +520,10 @@ const ManageQuizzes = () => {
                     Copy Link
                   </button>
                   <button
-                    style={{ ...S.btnDanger, padding: "7px 14px", fontSize: "13px" }}
+                    style={{ ...S.btnDanger, padding: "7px 14px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                     onClick={(e) => handleDelete(q._id, e)}
                   >
-                    Delete
+                    <Trash2 size={14} /> Delete
                   </button>
                 </div>
               </div>
@@ -610,7 +621,7 @@ const ManageQuizzes = () => {
               </span>
             </h2>
             <button style={S.btnSecondary} onClick={addQuestion}>
-              + Add Question
+              Add New Question
             </button>
           </div>
 
@@ -628,7 +639,7 @@ const ManageQuizzes = () => {
             >
               <p style={{ fontWeight: "600" }}>No questions yet</p>
               <p style={{ fontSize: "13px", marginTop: "4px" }}>
-                Click "+ Add Question" to start building your quiz
+                Click "Add New Question" to start building your quiz
               </p>
             </div>
           )}
@@ -819,10 +830,10 @@ const ManageQuizzes = () => {
           <div style={{ ...S.between, marginBottom: "20px" }}>
             <div style={S.row}>
               <button
-                style={{ ...S.btnGhost, fontSize: "20px", padding: "6px 10px" }}
+                style={{ ...S.btnGhost, display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px" }}
                 onClick={() => navigate("/admin/manage-quizzes")}
               >
-                ←
+                <ArrowLeft size={20} />
               </button>
               <div>
                 <h1 style={S.h1}>{quiz.title}</h1>
@@ -1043,7 +1054,7 @@ const ManageQuizzes = () => {
                           disabled={selQ === 0}
                           onClick={() => setSelQ((i) => i - 1)}
                         >
-                          ← Prev
+                          Previous
                         </button>
                         <button
                           style={{
@@ -1055,7 +1066,7 @@ const ManageQuizzes = () => {
                           disabled={selQ === quiz.questions.length - 1}
                           onClick={() => setSelQ((i) => i + 1)}
                         >
-                          Next →
+                          Next
                         </button>
                       </div>
                     </div>
@@ -1158,26 +1169,19 @@ const ManageQuizzes = () => {
             <div style={{ ...S.card, marginTop: "20px" }}>
               <div style={{ ...S.between, marginBottom: "16px" }}>
                 <div>
-                  <h2 style={{ ...S.h2, margin: 0 }}>🏆 Leaderboard</h2>
-                  {status === "Live" && (
-                    <span
-                      style={{
-                        fontSize: "12px", color: COLOR.success,
-                        marginTop: "3px", display: "block",
-                      }}
-                    >
-                      Auto-refreshing every 5 s
-                    </span>
-                  )}
+                  <h2 style={{ ...S.h2, margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Trophy size={18} color="#D97706" /> Leaderboard
+                  </h2>
                 </div>
                 <div
                   style={{
                     background: "#EFF6FF", color: COLOR.primary,
                     padding: "10px 18px", borderRadius: "8px",
                     fontWeight: "700", fontSize: "15px",
+                    display: "flex", alignItems: "center", gap: "8px"
                   }}
                 >
-                  👥 {footfall} participant{footfall !== 1 ? "s" : ""}
+                  <Users size={18} /> {footfall} participant{footfall !== 1 ? "s" : ""}
                 </div>
               </div>
 

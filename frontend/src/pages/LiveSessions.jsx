@@ -34,9 +34,6 @@ const LiveSessions = () => {
 
   useEffect(() => {
     fetchLiveQuizzes();
-    // Keep a slow refresh for the main list just in case, but rely on WS for modal
-    const interval = setInterval(fetchLiveQuizzes, 30000); 
-    return () => clearInterval(interval);
   }, []);
 
   const fetchModalData = async (quizId) => {
@@ -134,9 +131,6 @@ const LiveSessions = () => {
     <AdminLayout>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <h1 style={{ margin: 0, color: "#0f172a" }}>Live Sessions</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#64748b", fontSize: "14px" }}>
-          <RefreshCw size={14} /> Auto-refreshing
-        </div>
       </div>
 
       <div style={{

@@ -1,4 +1,4 @@
-import { ChevronDown, Calendar, Search } from "lucide-react";
+import { ChevronDown, Calendar, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -82,7 +82,7 @@ const QuizTable = ({ refresh, onUpdate }) => {
           onClick={() => navigate("/admin/manage-quizzes")}
           style={addBtn}
         >
-          + Add Quiz
+          Create New Quiz
         </button>
       </div>
 
@@ -180,7 +180,7 @@ const QuizTable = ({ refresh, onUpdate }) => {
 
                     {/* DELETE */}
                     <span onClick={() => handleDelete(quiz._id)} style={deleteIcon}>
-                      🗑️
+                      <Trash2 size={16} color="#ef4444" />
                     </span>
 
                   </div>
