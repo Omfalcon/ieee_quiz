@@ -1,11 +1,15 @@
-import { ChevronDown, Calendar, Search } from "lucide-react";
+import { ChevronDown, Calendar, Search, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const QuizTable = ({ refresh }) => {
+const QuizTable = ({ refresh, onUpdate }) => {
 
   const [quizzes, setQuizzes] = useState([]);
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [filterDate, setFilterDate] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,31 +37,39 @@ const QuizTable = ({ refresh }) => {
   };
 
   const getStatus = (quiz) => {
-    if (quiz.is_active) return "Live";
-
-    const now = new Date();
-    const start = new Date(quiz.start_time);
-    const end = new Date(quiz.end_time);
-
-    if (now < start) return "Scheduled";
-    if (now >= start && now <= end) return "Live";
-    return "Finished";
-  };
-
-  const getBadge = (status) => {
-    if (status === "Live") return liveBadge;
-    if (status === "Finished") return finishedBadge;
-    return scheduledBadge;
+    const s = quiz?.status || "scheduled";
+    return s.charAt(0).toUpperCase() + s.slice(1); // "live" → "Live"
   };
 
   const handleDelete = async (id) => {
     try {
+      if (!window.confirm("Delete this quiz?")) return;
       await axios.delete(`http://127.0.0.1:8000/quizzes/${id}`);
       fetchQuizzes();
+      if (onUpdate) onUpdate();
     } catch (err) {
       console.error(err);
     }
   };
+
+  const categories = ["All", ...new Set(quizzes.map(q => q.category).filter(Boolean))];
+  const statuses = ["All", "Live", "Scheduled", "Finished"];
+
+  const filteredQuizzes = quizzes.filter(quiz => {
+    const status = getStatus(quiz);
+    if (filterStatus !== "All" && status !== filterStatus) return false;
+    if (filterCategory !== "All" && quiz.category !== filterCategory) return false;
+    if (searchQuery && !quiz.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterDate) {
+      try {
+        const qDate = new Date(quiz.start_time).toISOString().split('T')[0];
+        if (qDate !== filterDate) return false;
+      } catch (e) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <div style={{ background: "white", padding: "20px", borderRadius: "10px", flex: 2 }}>
@@ -70,16 +82,55 @@ const QuizTable = ({ refresh }) => {
           onClick={() => navigate("/admin/manage-quizzes")}
           style={addBtn}
         >
-          + Add Quiz
+          Create New Quiz
         </button>
       </div>
 
       {/* FILTERS */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-        <div style={filterBox}><input placeholder="Status" style={inputStyle} /><ChevronDown size={16} style={iconStyle} /></div>
-        <div style={filterBox}><input placeholder="Category" style={inputStyle} /><ChevronDown size={16} style={iconStyle} /></div>
-        <div style={filterBox}><input placeholder="Date" style={inputStyle} /><Calendar size={16} style={iconStyle} /></div>
-        <div style={filterBox}><input placeholder="Search..." style={inputStyle} /><Search size={16} style={iconStyle} /></div>
+        
+        <div style={filterBox}>
+          <select 
+            style={{...inputStyle, appearance: "none", cursor: "pointer"}} 
+            value={filterStatus} 
+            onChange={e => setFilterStatus(e.target.value)}
+          >
+            {statuses.map(s => <option key={s} value={s}>{s === "All" ? "Status (All)" : s}</option>)}
+          </select>
+          <ChevronDown size={16} style={{...iconStyle, pointerEvents: "none"}} />
+        </div>
+
+        <div style={filterBox}>
+          <select 
+            style={{...inputStyle, appearance: "none", cursor: "pointer"}} 
+            value={filterCategory} 
+            onChange={e => setFilterCategory(e.target.value)}
+          >
+            {categories.map(c => <option key={c} value={c}>{c === "All" ? "Category (All)" : c}</option>)}
+          </select>
+          <ChevronDown size={16} style={{...iconStyle, pointerEvents: "none"}} />
+        </div>
+
+        <div style={filterBox}>
+          <input 
+            type="date"
+            style={inputStyle} 
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+          />
+        </div>
+
+        <div style={filterBox}>
+          <input 
+            type="text"
+            placeholder="Search quizzes..." 
+            style={{...inputStyle, paddingRight: "30px"}} 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          <Search size={16} style={{...iconStyle, pointerEvents: "none"}} />
+        </div>
+
       </div>
 
       {/* TABLE */}
@@ -97,14 +148,21 @@ const QuizTable = ({ refresh }) => {
         </thead>
 
         <tbody>
-          {quizzes.map((quiz) => {
+          {filteredQuizzes.length === 0 ? (
+            <tr>
+              <td colSpan="7" style={{ textAlign: "center", padding: "20px", color: "#6c757d" }}>
+                No quizzes found matching your filters.
+              </td>
+            </tr>
+          ) : (
+          filteredQuizzes.map((quiz) => {
             const status = getStatus(quiz);
 
             return (
               <tr key={quiz._id} style={rowStyle}>
                 <td style={tdStyle}>{quiz.title}</td>
                 <td style={tdStyle}>{quiz.category}</td>
-                <td style={tdStyle}><span style={getBadge(status)}>{status}</span></td>
+                <td style={tdStyle}><span style={BADGE_MAP[status] || scheduledBadge}>{status}</span></td>
                 <td style={tdStyle}>{formatDateTime(quiz.start_time)}</td>
                 <td style={tdStyle}>{formatDateTime(quiz.end_time)}</td>
                 <td style={tdStyle}>{quiz.participants || 0}</td>
@@ -122,14 +180,14 @@ const QuizTable = ({ refresh }) => {
 
                     {/* DELETE */}
                     <span onClick={() => handleDelete(quiz._id)} style={deleteIcon}>
-                      🗑️
+                      <Trash2 size={16} color="#ef4444" />
                     </span>
 
                   </div>
                 </td>
               </tr>
             );
-          })}
+          }))}
         </tbody>
       </table>
     </div>
@@ -173,6 +231,8 @@ const rowStyle = {
 const liveBadge = { background: "#28a745", color: "white", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
 const finishedBadge = { background: "#6c757d", color: "white", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
 const scheduledBadge = { background: "#ffc107", color: "black", padding: "4px 10px", borderRadius: "20px", fontSize: "12px" };
+
+const BADGE_MAP = { Live: liveBadge, Finished: finishedBadge, Scheduled: scheduledBadge };
 
 const viewBtn = {
   background: "#e0e0e0",

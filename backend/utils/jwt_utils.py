@@ -1,5 +1,10 @@
 from datetime import datetime, timedelta
-from jose import jwt
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from backend.config import settings
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 from backend.config import settings
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
@@ -18,3 +23,12 @@ def decode_token(token: str):
         return payload
     except Exception as e:
         return None
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if payload is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")

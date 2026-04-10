@@ -1,9 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary-blue: #145FB6; /* Matches the IEEE Blue in screenshot */
+  --primary-blue: #145FB6;
   --primary-blue-hover: #0E4B92;
-  --bg-blue: #1669C6; /* Lighter background blue */
+  --bg-blue: #1669C6;
   --card-bg: #FFFFFF;
   --input-bg: #EAEAEA;
   --text-dark: #212529;
@@ -21,12 +21,18 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--bg-blue);
   color: var(--text-dark);
   min-height: 100vh;
+}
+
+/* Auth Layout background - used specifically for Login/Signup */
+.auth-page-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--bg-blue) 100%);
   display: flex;
   flex-direction: column;
 }
+
 
 /* Base UI Elements */
 .auth-container {
@@ -196,15 +202,15 @@ body {
   text-decoration: underline;
 }
 
-/* Dashboards */
-.dashboard-container {
+/* Legacy Dashboards - renaming to avoid conflict with new refined dashboards */
+.legacy-dashboard-container {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
 }
 
-.dashboard-header {
+.legacy-dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -214,6 +220,7 @@ body {
   margin-bottom: 2rem;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
+
 
 .user-profile {
   display: flex;

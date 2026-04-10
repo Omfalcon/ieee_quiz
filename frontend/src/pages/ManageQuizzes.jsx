@@ -2,11 +2,27 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import axios from "axios";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import {
+  ClipboardList,
+  FileText,
+  Users,
+  Plus,
+  ArrowLeft,
+  Trophy,
+  CheckCircle,
+  Copy,
+  Trash2,
+  Edit3,
+  Maximize,
+  FileSignature,
+  RefreshCw
+} from "lucide-react";
 
 const API = "http://127.0.0.1:8000";
 
 const EMPTY_FORM = {
   title: "",
+  description: "",
   category: "",
   start_time: "",
   end_time: "",
@@ -19,16 +35,10 @@ const mkQuestion = () => ({
   correct_answer: 0,
 });
 
-// ─── Status derivation (time-based, not is_active flag) ───
+// ─── Status: read directly from DB field (live / scheduled / finished) ───
 const getStatus = (quiz) => {
-  if (!quiz?.start_time || !quiz?.end_time) return "Draft";
-  const now = new Date();
-  const s = new Date(quiz.start_time);
-  const e = new Date(quiz.end_time);
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Draft";
-  if (now < s) return "Scheduled";
-  if (now >= s && now <= e) return "Live";
-  return "Finished";
+  const s = quiz?.status || "scheduled";
+  return s.charAt(0).toUpperCase() + s.slice(1); // "live" → "Live"
 };
 
 const fmtDT = (val) => {
@@ -47,25 +57,34 @@ const fmtDT = (val) => {
   }
 };
 
+const calcDuration = (start, end) => {
+  if (!start || !end) return "—";
+  const s = new Date(start);
+  const e = new Date(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return "—";
+  const diffMins = Math.round((e - s) / 60000);
+  return diffMins > 0 ? `${diffMins} min` : "—";
+};
+
 // ─── Design tokens ───
 const COLOR = {
-  primary:   "#2563EB",
-  success:   "#16A34A",
-  danger:    "#DC2626",
-  warning:   "#D97706",
-  bg:        "#F8FAFC",
-  card:      "#FFFFFF",
-  border:    "#E2E8F0",
-  text:      "#1E293B",
-  muted:     "#64748B",
-  faint:     "#94A3B8",
+  primary: "#2563EB",
+  success: "#16A34A",
+  danger: "#DC2626",
+  warning: "#D97706",
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  border: "#E2E8F0",
+  text: "#1E293B",
+  muted: "#64748B",
+  faint: "#94A3B8",
 };
 
 const STATUS_MAP = {
-  Live:      { bg: "#DCFCE7", color: "#16A34A" },
+  Live: { bg: "#DCFCE7", color: "#16A34A" },
   Scheduled: { bg: "#FEF9C3", color: "#B45309" },
-  Finished:  { bg: "#F1F5F9", color: "#475569" },
-  Draft:     { bg: "#F1F5F9", color: "#94A3B8" },
+  Finished: { bg: "#F1F5F9", color: "#475569" },
+  Draft: { bg: "#F1F5F9", color: "#94A3B8" },
 };
 
 // ─── Reusable style objects ───
@@ -144,27 +163,22 @@ const S = {
 
 // ══════════════════════════════════════════════════════════════
 const ManageQuizzes = () => {
-  const navigate  = useNavigate();
-  const { id }    = useParams();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation();
 
-  const isList   = location.pathname === "/admin/manage-quizzes";
-  const isView   = location.pathname.includes("/view/");
+  const isList = location.pathname === "/admin/manage-quizzes";
+  const isView = location.pathname.includes("/view/");
   const isCreate = location.pathname.includes("/create");
-  const isEdit   = location.pathname.includes("/edit/");
+  const isEdit = location.pathname.includes("/edit/");
 
-  const [quizzes,     setQuizzes]     = useState([]);
-  const [quiz,        setQuiz]        = useState(null);
-  const [form,        setForm]        = useState({ ...EMPTY_FORM });
-  const [selQ,        setSelQ]        = useState(0);
+  const [quizzes, setQuizzes] = useState([]);
+  const [quiz, setQuiz] = useState(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [selQ, setSelQ] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [footfall,    setFootfall]    = useState(0);
-  const [loading,     setLoading]     = useState(false);
-  const [aiTopic,     setAiTopic]     = useState("");
-  const [aiDiff,      setAiDiff]      = useState("medium");
-  const [aiCount,     setAiCount]     = useState(5);
-  const [aiLoading,   setAiLoading]   = useState(false);
-  const [copied,      setCopied]      = useState(false);
+  const [footfall, setFootfall] = useState(0);
+  const [loading, setLoading] = useState(false);
   const pollRef = useRef(null);
 
   // ─── Fetch helpers ───
@@ -215,42 +229,46 @@ const ManageQuizzes = () => {
   // CRITICAL FIX: always reset form to blank when navigating to /create
   useEffect(() => {
     if (isCreate) {
-      setForm({ title: "", category: "", start_time: "", end_time: "", questions: [] });
+      setForm({ title: "", description: "", category: "", start_time: "", end_time: "", questions: [] });
     }
   }, [isCreate]);
 
-  // Leaderboard polling for live / finished quizzes
+  // Load leaderboard once when entering view mode
   useEffect(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    if (isView && quiz) {
-      const status = getStatus(quiz);
-      if (status === "Live" || status === "Finished") {
-        fetchLeaderboard();
-        if (status === "Live") {
-          pollRef.current = setInterval(fetchLeaderboard, 5000);
-        }
-      }
+    if (isView && id) {
+      fetchLeaderboard();
     }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isView, quiz, fetchLeaderboard]);
+  }, [isView, id, fetchLeaderboard]);
 
   // ─── Mutations ───
   const handleCreate = async () => {
     if (!form.title.trim()) return alert("Title is required");
+    if (!form.questions || form.questions.length === 0) {
+      return alert("Quiz must have at least 1 question.");
+    }
+    if (!form.start_time || !form.end_time) {
+      return alert("Start and End times are required.");
+    }
+    if (new Date(form.end_time) <= new Date(form.start_time)) {
+      return alert("End time must be after the start time.");
+    }
+
     setLoading(true);
     try {
       const payload = {
-        title:      form.title.trim(),
-        category:   form.category.trim(),
+        title: form.title.trim(),
+        description: form.description?.trim() || "",
+        category: form.category?.trim() || "",
         start_time: form.start_time,
-        end_time:   form.end_time,
-        questions:  form.questions.map((q) => ({
-          question:       q.question,
-          options:        q.options,
+        end_time: form.end_time,
+        questions: form.questions.map((q) => ({
+          question: q.question,
+          options: q.options,
           correct_answer: q.correct_answer,
         })),
       };
       await axios.post(`${API}/quizzes`, payload);
+      await fetchQuizzes();
       setForm({ ...EMPTY_FORM });
       navigate("/admin/manage-quizzes");
     } catch {
@@ -262,13 +280,23 @@ const ManageQuizzes = () => {
 
   const handleUpdate = async () => {
     if (!form.title.trim()) return alert("Title is required");
+    if (!form.questions || form.questions.length === 0) {
+      return alert("Quiz must have at least 1 question.");
+    }
+    if (!form.start_time || !form.end_time) {
+      return alert("Start and End times are required.");
+    }
+    if (new Date(form.end_time) <= new Date(form.start_time)) {
+      return alert("End time must be after the start time.");
+    }
+
     setLoading(true);
     try {
       // eslint-disable-next-line no-unused-vars
       const { _id, participants, is_active, ...payload } = form;
       payload.questions = payload.questions.map((q) => ({
-        question:       q.question,
-        options:        q.options,
+        question: q.question,
+        options: q.options,
         correct_answer: q.correct_answer,
       }));
       await axios.put(`${API}/quizzes/${id}`, payload);
@@ -288,8 +316,8 @@ const ManageQuizzes = () => {
         const clean = {
           ...res.data,
           questions: (res.data.questions || []).map((q) => ({
-            question:       q.question || "",
-            options:        Array.isArray(q.options) && q.options.length === 4 ? q.options : ["", "", "", ""],
+            question: q.question || "",
+            options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["", "", "", ""],
             correct_answer: typeof q.correct_answer === "number" ? q.correct_answer : 0,
           })),
         };
@@ -311,46 +339,6 @@ const ManageQuizzes = () => {
     } catch {
       alert("Failed to delete quiz.");
     }
-  };
-
-  // ─── AI question generation ───
-  const handleGenerateAI = async () => {
-    if (!aiTopic.trim()) return alert("Please enter a topic for AI generation");
-    setAiLoading(true);
-    try {
-      const res = await axios.post(`${API}/generate-questions`, {
-        topic:      aiTopic.trim(),
-        difficulty: aiDiff,
-        count:      Number(aiCount),
-      });
-      const generated = res.data.questions || [];
-      // Validate structure before appending — never corrupt existing questions
-      const safe = generated.filter(
-        (q) =>
-          q &&
-          typeof q.question === "string" &&
-          Array.isArray(q.options) &&
-          q.options.length === 4 &&
-          typeof q.correct_answer === "number"
-      );
-      if (safe.length === 0) return alert("AI returned no valid questions. Try again.");
-      setForm((p) => ({ ...p, questions: [...p.questions, ...safe] }));
-      setAiTopic("");
-    } catch (err) {
-      const msg = err.response?.data?.detail || "AI generation failed. Is API_KEY set in backend/.env?";
-      alert(msg);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // ─── Copy shareable link ───
-  const handleCopyLink = () => {
-    const link = `${window.location.origin}/quiz/${id}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
   };
 
   // ─── Question form helpers ───
@@ -397,7 +385,7 @@ const ManageQuizzes = () => {
               style={S.btnPrimary}
               onClick={() => navigate("/admin/manage-quizzes/create")}
             >
-              + Add Quiz
+              Create New Quiz
             </button>
           </div>
 
@@ -413,12 +401,14 @@ const ManageQuizzes = () => {
                 background: COLOR.bg,
               }}
             >
-              <div style={{ fontSize: "44px", marginBottom: "12px" }}>📋</div>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px", color: COLOR.faint }}>
+                <ClipboardList size={48} />
+              </div>
               <p style={{ fontWeight: "600", fontSize: "15px", color: COLOR.muted }}>
                 No quizzes yet
               </p>
               <p style={{ fontSize: "13px", marginTop: "6px" }}>
-                Click "Add Quiz" to create your first quiz
+                Click "Create New Quiz" to start your first quiz
               </p>
             </div>
           )}
@@ -437,17 +427,8 @@ const ManageQuizzes = () => {
                   alignItems: "center",
                   cursor: "pointer",
                   marginBottom: "10px",
-                  transition: "box-shadow 0.15s",
                 }}
                 onClick={() => navigate(`/admin/manage-quizzes/view/${q._id}`)}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.boxShadow =
-                    "0 4px 14px rgba(0,0,0,0.10)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.boxShadow =
-                    "0 1px 4px rgba(0,0,0,0.05)")
-                }
               >
                 {/* Left: icon + info */}
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -458,10 +439,11 @@ const ManageQuizzes = () => {
                       background: "#EFF6FF",
                       display: "flex", alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "20px", flexShrink: 0,
+                      color: COLOR.primary,
+                      flexShrink: 0,
                     }}
                   >
-                    📝
+                    <FileSignature size={20} />
                   </div>
                   <div>
                     <div
@@ -500,8 +482,8 @@ const ManageQuizzes = () => {
                         {(q.questions || []).length} Q
                       </span>
                       {(q.participants ?? 0) > 0 && (
-                        <span style={{ fontSize: "12px", color: COLOR.faint }}>
-                          · 👥 {q.participants}
+                        <span style={{ fontSize: "12px", color: COLOR.faint, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          · <Users size={12} /> {q.participants}
                         </span>
                       )}
                     </div>
@@ -519,17 +501,19 @@ const ManageQuizzes = () => {
                       padding: "7px 14px",
                       fontSize: "13px",
                     }}
-                    onClick={() =>
-                      navigate(`/admin/manage-quizzes/edit/${q._id}`)
-                    }
+                    onClick={() => {
+                      const link = `${window.location.origin}/student/quiz/${q._id}`;
+                      navigator.clipboard.writeText(link);
+                      alert("Attempt link copied to clipboard!");
+                    }}
                   >
-                    Edit
+                    Copy Link
                   </button>
                   <button
-                    style={{ ...S.btnDanger, padding: "7px 14px", fontSize: "13px" }}
+                    style={{ ...S.btnDanger, padding: "7px 14px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}
                     onClick={(e) => handleDelete(q._id, e)}
                   >
-                    Delete
+                    <Trash2 size={14} /> Delete
                   </button>
                 </div>
               </div>
@@ -547,20 +531,6 @@ const ManageQuizzes = () => {
     return (
       <AdminLayout>
         <div style={S.page}>
-          {/* Header */}
-          <div style={{ ...S.row, marginBottom: "24px" }}>
-            <button
-              style={{ ...S.btnGhost, fontSize: "20px", padding: "6px 10px" }}
-              onClick={() =>
-                isEdit
-                  ? navigate(`/admin/manage-quizzes/view/${id}`)
-                  : navigate("/admin/manage-quizzes")
-              }
-            >
-              ←
-            </button>
-            <h1 style={S.h1}>{isCreate ? "Create New Quiz" : "Edit Quiz"}</h1>
-          </div>
 
           {/* Details card */}
           <div style={S.card}>
@@ -594,6 +564,17 @@ const ManageQuizzes = () => {
                   }
                 />
               </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={S.label}>Description</label>
+                <textarea
+                  style={{ ...S.input, minHeight: "80px", resize: "vertical" }}
+                  placeholder="Enter a description for the quiz..."
+                  value={form.description || ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
+                  }
+                />
+              </div>
               <div>
                 <label style={S.label}>Start Time</label>
                 <input
@@ -619,72 +600,6 @@ const ManageQuizzes = () => {
             </div>
           </div>
 
-          {/* ── AI Question Generator ── */}
-          <div style={{ ...S.card, marginBottom: "16px", marginTop: "4px" }}>
-            <div style={{ ...S.between, marginBottom: "14px" }}>
-              <div>
-                <h2 style={{ ...S.h2, margin: 0 }}>🧠 AI Question Generator</h2>
-                <p style={{ fontSize: "12px", color: COLOR.muted, marginTop: "4px" }}>
-                  Generated questions are appended — existing questions are never overwritten.
-                </p>
-              </div>
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 160px 100px auto",
-                gap: "10px",
-                alignItems: "flex-end",
-              }}
-            >
-              <div>
-                <label style={S.label}>Topic</label>
-                <input
-                  style={S.input}
-                  placeholder="e.g. Python Data Types"
-                  value={aiTopic}
-                  onChange={(e) => setAiTopic(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleGenerateAI()}
-                />
-              </div>
-              <div>
-                <label style={S.label}>Difficulty</label>
-                <select
-                  style={{ ...S.input, cursor: "pointer" }}
-                  value={aiDiff}
-                  onChange={(e) => setAiDiff(e.target.value)}
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-              <div>
-                <label style={S.label}>Count</label>
-                <input
-                  style={S.input}
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={aiCount}
-                  onChange={(e) => setAiCount(e.target.value)}
-                />
-              </div>
-              <button
-                style={{
-                  ...S.btnPrimary,
-                  background: aiLoading ? COLOR.muted : "#7C3AED",
-                  whiteSpace: "nowrap",
-                  opacity: aiLoading ? 0.75 : 1,
-                }}
-                disabled={aiLoading}
-                onClick={handleGenerateAI}
-              >
-                {aiLoading ? "Generating…" : "Generate ✨"}
-              </button>
-            </div>
-          </div>
-
           {/* Questions header */}
           <div
             style={{ ...S.between, marginBottom: "12px", marginTop: "4px" }}
@@ -696,7 +611,7 @@ const ManageQuizzes = () => {
               </span>
             </h2>
             <button style={S.btnSecondary} onClick={addQuestion}>
-              + Add Question
+              Add New Question
             </button>
           </div>
 
@@ -714,7 +629,7 @@ const ManageQuizzes = () => {
             >
               <p style={{ fontWeight: "600" }}>No questions yet</p>
               <p style={{ fontSize: "13px", marginTop: "4px" }}>
-                Click "+ Add Question" to start building your quiz
+                Click "Add New Question" to start building your quiz
               </p>
             </div>
           )}
@@ -855,8 +770,8 @@ const ManageQuizzes = () => {
               {loading
                 ? "Saving..."
                 : isCreate
-                ? "Create Quiz"
-                : "Save Changes"}
+                  ? "Create Quiz"
+                  : "Save Changes"}
             </button>
           </div>
         </div>
@@ -886,20 +801,12 @@ const ManageQuizzes = () => {
     }
 
     const status = getStatus(quiz);
-    const sc = STATUS_MAP[status] || STATUS_MAP.Draft;
-    const canShowLeaderboard =
-      status === "Live" || status === "Finished";
+    const sc = STATUS_MAP[status] || STATUS_MAP.Scheduled;
     const currentQ = quiz.questions[selQ] ?? null;
 
-    // Toggle button label + style based on time-derived status
+    // Toggle button: Live → "End Quiz" (danger), else → "Go Live" (success)
     const toggleLabel =
-      status === "Live"
-        ? "End Quiz"
-        : status === "Scheduled"
-        ? "Go Live Now"
-        : status === "Finished"
-        ? "Re-activate"
-        : "Start Quiz";
+      status === "Live" ? "End Quiz" : "Go Live Now";
 
     const toggleStyle =
       status === "Live" ? S.btnDanger : S.btnSuccess;
@@ -911,10 +818,10 @@ const ManageQuizzes = () => {
           <div style={{ ...S.between, marginBottom: "20px" }}>
             <div style={S.row}>
               <button
-                style={{ ...S.btnGhost, fontSize: "20px", padding: "6px 10px" }}
+                style={{ ...S.btnGhost, display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px" }}
                 onClick={() => navigate("/admin/manage-quizzes")}
               >
-                ←
+                <ArrowLeft size={20} />
               </button>
               <div>
                 <h1 style={S.h1}>{quiz.title}</h1>
@@ -954,19 +861,18 @@ const ManageQuizzes = () => {
             </div>
 
             <div style={S.row}>
+              <button
+                style={{ ...S.btnSecondary, background: "#fff" }}
+                onClick={() => {
+                  const link = `${window.location.origin}/student/quiz/${id}`;
+                  navigator.clipboard.writeText(link);
+                  alert("Attempt link copied to clipboard!");
+                }}
+              >
+                Copy Link
+              </button>
               <button style={toggleStyle} onClick={handleToggle}>
                 {toggleLabel}
-              </button>
-              <button
-                style={{
-                  ...S.btnSecondary,
-                  background: copied ? "#F0FDF4" : undefined,
-                  color: copied ? COLOR.success : undefined,
-                  border: copied ? "1px solid #BBF7D0" : undefined,
-                }}
-                onClick={handleCopyLink}
-              >
-                {copied ? "✓ Copied!" : "🔗 Copy Link"}
               </button>
               <button
                 style={S.btnSecondary}
@@ -976,24 +882,44 @@ const ManageQuizzes = () => {
               >
                 Edit Quiz
               </button>
+              <button
+                style={{ 
+                  ...S.btnPrimary, 
+                  background: "#4f46e5",
+                  display: "flex", alignItems: "center", gap: "8px",
+                  border: "none"
+                }}
+                onClick={() => window.open(`/leaderboard/${id}`, '_blank')}
+              >
+                <div style={{ width: "8px", height: "8px", background: "#4ade80", borderRadius: "50%" }}></div>
+                <Trophy size={18} />
+                Live Leaderboard
+              </button>
             </div>
           </div>
 
           {/* ── Info strip ── */}
+          {quiz.description && (
+            <div style={{ ...S.card, marginBottom: "18px", color: COLOR.text, fontSize: "14px" }}>
+              <strong style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: COLOR.muted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Description</strong>
+              {quiz.description}
+            </div>
+          )}
           <div
             style={{
               ...S.card,
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: "repeat(5, 1fr)",
               padding: 0,
               overflow: "hidden",
               marginBottom: "18px",
             }}
           >
             {[
-              { label: "Start Time",   value: fmtDT(quiz.start_time) },
-              { label: "End Time",     value: fmtDT(quiz.end_time) },
-              { label: "Questions",    value: quiz.questions.length },
+              { label: "Start Time", value: fmtDT(quiz.start_time) },
+              { label: "End Time", value: fmtDT(quiz.end_time) },
+              { label: "Duration", value: calcDuration(quiz.start_time, quiz.end_time) },
+              { label: "Questions", value: quiz.questions.length },
               { label: "Participants", value: quiz.participants ?? 0 },
             ].map((item, i) => (
               <div
@@ -1129,7 +1055,7 @@ const ManageQuizzes = () => {
                           disabled={selQ === 0}
                           onClick={() => setSelQ((i) => i - 1)}
                         >
-                          ← Prev
+                          Previous
                         </button>
                         <button
                           style={{
@@ -1141,7 +1067,7 @@ const ManageQuizzes = () => {
                           disabled={selQ === quiz.questions.length - 1}
                           onClick={() => setSelQ((i) => i + 1)}
                         >
-                          Next →
+                          Next
                         </button>
                       </div>
                     </div>
@@ -1239,31 +1165,24 @@ const ManageQuizzes = () => {
             </div>
           )}
 
-          {/* ── Leaderboard (Live / Finished only) ── */}
-          {canShowLeaderboard && (
+          {/* ── Leaderboard (Show if participants exist) ── */}
+          {leaderboard.length > 0 && (
             <div style={{ ...S.card, marginTop: "20px" }}>
               <div style={{ ...S.between, marginBottom: "16px" }}>
                 <div>
-                  <h2 style={{ ...S.h2, margin: 0 }}>🏆 Leaderboard</h2>
-                  {status === "Live" && (
-                    <span
-                      style={{
-                        fontSize: "12px", color: COLOR.success,
-                        marginTop: "3px", display: "block",
-                      }}
-                    >
-                      Auto-refreshing every 5 s
-                    </span>
-                  )}
+                  <h2 style={{ ...S.h2, margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Trophy size={18} color="#D97706" /> Leaderboard
+                  </h2>
                 </div>
                 <div
                   style={{
                     background: "#EFF6FF", color: COLOR.primary,
                     padding: "10px 18px", borderRadius: "8px",
                     fontWeight: "700", fontSize: "15px",
+                    display: "flex", alignItems: "center", gap: "8px"
                   }}
                 >
-                  👥 {footfall} participant{footfall !== 1 ? "s" : ""}
+                  <Users size={18} /> {footfall} participant{footfall !== 1 ? "s" : ""}
                 </div>
               </div>
 
@@ -1286,7 +1205,7 @@ const ManageQuizzes = () => {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${COLOR.border}` }}>
-                      {["Rank", "Name", "Score", "Time Taken"].map((h, i) => (
+                      {["Rank", "Name", "Score", "Points", "Time Taken"].map((h, i) => (
                         <th
                           key={h}
                           style={{
@@ -1306,9 +1225,9 @@ const ManageQuizzes = () => {
                     {leaderboard.map((row, i) => {
                       const medalBg =
                         i === 0 ? "#FDE68A"
-                        : i === 1 ? "#E2E8F0"
-                        : i === 2 ? "#FDBA74"
-                        : "#F1F5F9";
+                          : i === 1 ? "#E2E8F0"
+                            : i === 2 ? "#FDBA74"
+                              : "#F1F5F9";
                       return (
                         <tr
                           key={i}
@@ -1318,8 +1237,8 @@ const ManageQuizzes = () => {
                               i === 0
                                 ? "#FFFBEB"
                                 : i % 2 === 0
-                                ? "#FAFAFA"
-                                : "#fff",
+                                  ? "#FAFAFA"
+                                  : "#fff",
                           }}
                         >
                           <td
@@ -1364,11 +1283,21 @@ const ManageQuizzes = () => {
                           <td
                             style={{
                               padding: "12px 14px",
+                              color: COLOR.primary,
+                              fontWeight: "700",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {row.points || 0}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
                               color: COLOR.muted,
                               fontSize: "13px",
                             }}
                           >
-                            {row.time_taken != null ? `${row.time_taken}s` : "—"}
+                            {row.time_taken_seconds != null ? `${row.time_taken_seconds}s` : "—"}
                           </td>
                         </tr>
                       );

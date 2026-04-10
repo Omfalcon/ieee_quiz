@@ -25,12 +25,10 @@ const AdminDashboard = () => {
       let live = 0, finished = 0, scheduled = 0;
 
       data.forEach(q => {
-        const start = new Date(q.start_time);
-        const end = new Date(q.end_time);
-
-        if (now < start) scheduled++;
-        else if (now >= start && now <= end) live++;
-        else finished++;
+        const status = q.status || "scheduled";
+        if (status === "live") live++;
+        else if (status === "finished") finished++;
+        else scheduled++;
       });
 
       setStats({
@@ -65,7 +63,7 @@ const AdminDashboard = () => {
       {/* MAIN */}
       <div style={{ display: "flex", gap: "20px" }}>
 
-        <QuizTable refresh={refresh} />
+        <QuizTable refresh={refresh} onUpdate={() => setRefresh(!refresh)} />
 
         <div style={{ flex: 1 }}>
           <LiveSessions />

@@ -19,7 +19,10 @@ const GoogleCallback = () => {
                 const decoded = jwtDecode(token);
                 // Use window.location.replace for a full page reload so
                 // AuthContext re-initializes from localStorage cleanly
-                if (decoded.role === 'admin') {
+                const redirect = queryParams.get('redirect');
+                if (redirect) {
+                    window.location.replace(redirect);
+                } else if (decoded.role === 'admin') {
                     window.location.replace('/admin/dashboard');
                 } else {
                     window.location.replace('/student/dashboard');
