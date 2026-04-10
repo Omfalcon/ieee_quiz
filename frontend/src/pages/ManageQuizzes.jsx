@@ -2,17 +2,19 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import axios from "axios";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { 
-  ClipboardList, 
-  FileText, 
-  Users, 
-  Plus, 
-  ArrowLeft, 
-  Trophy, 
+import {
+  ClipboardList,
+  FileText,
+  Users,
+  Plus,
+  ArrowLeft,
+  Trophy,
   CheckCircle,
   Copy,
   Trash2,
+  Edit2,
   Edit3,
+  Maximize,
   FileSignature
 } from "lucide-react";
 
@@ -66,23 +68,23 @@ const calcDuration = (start, end) => {
 
 // ─── Design tokens ───
 const COLOR = {
-  primary:   "#2563EB",
-  success:   "#16A34A",
-  danger:    "#DC2626",
-  warning:   "#D97706",
-  bg:        "#F8FAFC",
-  card:      "#FFFFFF",
-  border:    "#E2E8F0",
-  text:      "#1E293B",
-  muted:     "#64748B",
-  faint:     "#94A3B8",
+  primary: "#2563EB",
+  success: "#16A34A",
+  danger: "#DC2626",
+  warning: "#D97706",
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  border: "#E2E8F0",
+  text: "#1E293B",
+  muted: "#64748B",
+  faint: "#94A3B8",
 };
 
 const STATUS_MAP = {
-  Live:      { bg: "#DCFCE7", color: "#16A34A" },
+  Live: { bg: "#DCFCE7", color: "#16A34A" },
   Scheduled: { bg: "#FEF9C3", color: "#B45309" },
-  Finished:  { bg: "#F1F5F9", color: "#475569" },
-  Draft:     { bg: "#F1F5F9", color: "#94A3B8" },
+  Finished: { bg: "#F1F5F9", color: "#475569" },
+  Draft: { bg: "#F1F5F9", color: "#94A3B8" },
 };
 
 // ─── Reusable style objects ───
@@ -161,22 +163,22 @@ const S = {
 
 // ══════════════════════════════════════════════════════════════
 const ManageQuizzes = () => {
-  const navigate  = useNavigate();
-  const { id }    = useParams();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation();
 
-  const isList   = location.pathname === "/admin/manage-quizzes";
-  const isView   = location.pathname.includes("/view/");
+  const isList = location.pathname === "/admin/manage-quizzes";
+  const isView = location.pathname.includes("/view/");
   const isCreate = location.pathname.includes("/create");
-  const isEdit   = location.pathname.includes("/edit/");
+  const isEdit = location.pathname.includes("/edit/");
 
-  const [quizzes,     setQuizzes]     = useState([]);
-  const [quiz,        setQuiz]        = useState(null);
-  const [form,        setForm]        = useState({ ...EMPTY_FORM });
-  const [selQ,        setSelQ]        = useState(0);
+  const [quizzes, setQuizzes] = useState([]);
+  const [quiz, setQuiz] = useState(null);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [selQ, setSelQ] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [footfall,    setFootfall]    = useState(0);
-  const [loading,     setLoading]     = useState(false);
+  const [footfall, setFootfall] = useState(0);
+  const [loading, setLoading] = useState(false);
   const pollRef = useRef(null);
 
   // ─── Fetch helpers ───
@@ -231,15 +233,12 @@ const ManageQuizzes = () => {
     }
   }, [isCreate]);
 
-  // Leaderboard fetch for live / finished quizzes (Static only)
+  // Load leaderboard once when entering view mode
   useEffect(() => {
-    if (isView && quiz) {
-      const status = getStatus(quiz);
-      if (status === "Live" || status === "Finished") {
-        fetchLeaderboard();
-      }
+    if (isView && id) {
+      fetchLeaderboard();
     }
-  }, [isView, quiz, fetchLeaderboard]);
+  }, [isView, id, fetchLeaderboard]);
 
   // ─── Mutations ───
   const handleCreate = async () => {
@@ -257,14 +256,14 @@ const ManageQuizzes = () => {
     setLoading(true);
     try {
       const payload = {
-        title:      form.title.trim(),
-        description:form.description?.trim() || "",
-        category:   form.category?.trim() || "",
+        title: form.title.trim(),
+        description: form.description?.trim() || "",
+        category: form.category?.trim() || "",
         start_time: form.start_time,
-        end_time:   form.end_time,
-        questions:  form.questions.map((q) => ({
-          question:       q.question,
-          options:        q.options,
+        end_time: form.end_time,
+        questions: form.questions.map((q) => ({
+          question: q.question,
+          options: q.options,
           correct_answer: q.correct_answer,
         })),
       };
@@ -296,8 +295,8 @@ const ManageQuizzes = () => {
       // eslint-disable-next-line no-unused-vars
       const { _id, participants, is_active, ...payload } = form;
       payload.questions = payload.questions.map((q) => ({
-        question:       q.question,
-        options:        q.options,
+        question: q.question,
+        options: q.options,
         correct_answer: q.correct_answer,
       }));
       await axios.put(`${API}/quizzes/${id}`, payload);
@@ -317,8 +316,8 @@ const ManageQuizzes = () => {
         const clean = {
           ...res.data,
           questions: (res.data.questions || []).map((q) => ({
-            question:       q.question || "",
-            options:        Array.isArray(q.options) && q.options.length === 4 ? q.options : ["", "", "", ""],
+            question: q.question || "",
+            options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["", "", "", ""],
             correct_answer: typeof q.correct_answer === "number" ? q.correct_answer : 0,
           })),
         };
@@ -432,12 +431,12 @@ const ManageQuizzes = () => {
                 }}
                 onClick={() => navigate(`/admin/manage-quizzes/view/${q._id}`)}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.boxShadow =
-                    "0 4px 14px rgba(0,0,0,0.10)")
+                (e.currentTarget.style.boxShadow =
+                  "0 4px 14px rgba(0,0,0,0.10)")
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.boxShadow =
-                    "0 1px 4px rgba(0,0,0,0.05)")
+                (e.currentTarget.style.boxShadow =
+                  "0 1px 4px rgba(0,0,0,0.05)")
                 }
               >
                 {/* Left: icon + info */}
@@ -577,7 +576,7 @@ const ManageQuizzes = () => {
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={S.label}>Description</label>
                 <textarea
-                  style={{...S.input, minHeight: "80px", resize: "vertical"}}
+                  style={{ ...S.input, minHeight: "80px", resize: "vertical" }}
                   placeholder="Enter a description for the quiz..."
                   value={form.description || ""}
                   onChange={(e) =>
@@ -780,8 +779,8 @@ const ManageQuizzes = () => {
               {loading
                 ? "Saving..."
                 : isCreate
-                ? "Create Quiz"
-                : "Save Changes"}
+                  ? "Create Quiz"
+                  : "Save Changes"}
             </button>
           </div>
         </div>
@@ -874,7 +873,7 @@ const ManageQuizzes = () => {
 
             <div style={S.row}>
               <button
-                style={{...S.btnSecondary, background: "#fff"}}
+                style={{ ...S.btnSecondary, background: "#fff" }}
                 onClick={() => {
                   const link = `${window.location.origin}/student/quiz/${id}`;
                   navigator.clipboard.writeText(link);
@@ -894,13 +893,19 @@ const ManageQuizzes = () => {
               >
                 Edit Quiz
               </button>
+              <button
+                style={{ ...S.btnPrimary, background: "#0f172a" }}
+                onClick={() => window.open(`/admin/leaderboard/${id}`, '_blank')}
+              >
+                <Maximize size={18} /> Live Leaderboard
+              </button>
             </div>
           </div>
 
           {/* ── Info strip ── */}
           {quiz.description && (
-            <div style={{...S.card, marginBottom: "18px", color: COLOR.text, fontSize: "14px"}}>
-              <strong style={{display: "block", marginBottom: "6px", fontSize: "12px", color: COLOR.muted, textTransform: "uppercase", letterSpacing: "0.5px"}}>Description</strong>
+            <div style={{ ...S.card, marginBottom: "18px", color: COLOR.text, fontSize: "14px" }}>
+              <strong style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: COLOR.muted, textTransform: "uppercase", letterSpacing: "0.5px" }}>Description</strong>
               {quiz.description}
             </div>
           )}
@@ -915,10 +920,10 @@ const ManageQuizzes = () => {
             }}
           >
             {[
-              { label: "Start Time",   value: fmtDT(quiz.start_time) },
-              { label: "End Time",     value: fmtDT(quiz.end_time) },
-              { label: "Duration",     value: calcDuration(quiz.start_time, quiz.end_time) },
-              { label: "Questions",    value: quiz.questions.length },
+              { label: "Start Time", value: fmtDT(quiz.start_time) },
+              { label: "End Time", value: fmtDT(quiz.end_time) },
+              { label: "Duration", value: calcDuration(quiz.start_time, quiz.end_time) },
+              { label: "Questions", value: quiz.questions.length },
               { label: "Participants", value: quiz.participants ?? 0 },
             ].map((item, i) => (
               <div
@@ -1164,8 +1169,8 @@ const ManageQuizzes = () => {
             </div>
           )}
 
-          {/* ── Leaderboard (Live / Finished only) ── */}
-          {canShowLeaderboard && (
+          {/* ── Leaderboard (Show if participants exist) ── */}
+          {leaderboard.length > 0 && (
             <div style={{ ...S.card, marginTop: "20px" }}>
               <div style={{ ...S.between, marginBottom: "16px" }}>
                 <div>
@@ -1204,7 +1209,7 @@ const ManageQuizzes = () => {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${COLOR.border}` }}>
-                      {["Rank", "Name", "Score", "Time Taken"].map((h, i) => (
+                      {["Rank", "Name", "Score", "Points", "Time Taken"].map((h, i) => (
                         <th
                           key={h}
                           style={{
@@ -1224,9 +1229,9 @@ const ManageQuizzes = () => {
                     {leaderboard.map((row, i) => {
                       const medalBg =
                         i === 0 ? "#FDE68A"
-                        : i === 1 ? "#E2E8F0"
-                        : i === 2 ? "#FDBA74"
-                        : "#F1F5F9";
+                          : i === 1 ? "#E2E8F0"
+                            : i === 2 ? "#FDBA74"
+                              : "#F1F5F9";
                       return (
                         <tr
                           key={i}
@@ -1236,8 +1241,8 @@ const ManageQuizzes = () => {
                               i === 0
                                 ? "#FFFBEB"
                                 : i % 2 === 0
-                                ? "#FAFAFA"
-                                : "#fff",
+                                  ? "#FAFAFA"
+                                  : "#fff",
                           }}
                         >
                           <td
@@ -1282,11 +1287,21 @@ const ManageQuizzes = () => {
                           <td
                             style={{
                               padding: "12px 14px",
+                              color: COLOR.primary,
+                              fontWeight: "700",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {row.points || 0}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 14px",
                               color: COLOR.muted,
                               fontSize: "13px",
                             }}
                           >
-                            {row.time_taken != null ? `${row.time_taken}s` : "—"}
+                            {row.time_taken_seconds != null ? `${row.time_taken_seconds}s` : "—"}
                           </td>
                         </tr>
                       );

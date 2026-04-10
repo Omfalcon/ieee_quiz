@@ -43,11 +43,21 @@ async def get_student_attempts(current_user: dict = Depends(get_current_user)):
     enriched_attempts = []
     for att in attempts:
         quiz = db.quizzes.find_one({"_id": ObjectId(att["quiz_id"])})
+        # Dynamic calculation fallback
+        pts = att.get("points")
+        if (pts is None or pts == 0) and quiz:
+            try:
+                dur = int(str(quiz.get("duration", "30")).lower().replace("m", "").strip())
+            except:
+                dur = 30
+            pts = (att.get("score", 0) * 1000) + max(0, (dur * 60) - att.get("time_taken_seconds", 0))
+
         enriched_attempts.append({
             "quiz_id": att["quiz_id"],
             "title": quiz.get("title") if quiz else "Deleted Quiz",
             "category": quiz.get("category") if quiz else "N/A",
             "score": att.get("score", 0),
+            "points": pts or 0,
             "total_questions": att.get("total_questions", 0),
             "percentage": att.get("percentage", 0),
             "end_time": att.get("end_time"),
@@ -96,8 +106,36 @@ async def get_attempt_review(quiz_id: str, current_user: dict = Depends(get_curr
             "explanation": q.get("explanation", "") # if available
         })
 
+    # ── SECURITY CHECK: Only show review if quiz end_time has passed ──
+    now = datetime.now(timezone.utc)
+    quiz_end_str = quiz.get("end_time")
+    review_locked = True
+    
+    if quiz_end_str:
+        try:
+            # End time is stored as ISO string
+            quiz_end = datetime.fromisoformat(quiz_end_str.replace("Z", "+00:00"))
+            if now > quiz_end:
+                review_locked = False
+        except Exception as e:
+            print(f"Time parse error: {e}")
+            # If we can't parse end_time, we might fail-open or fail-closed. 
+            # Letting it be locked is safer.
+    
+    if review_locked:
+        return {
+            "title": quiz.get("title"),
+            "score": response_doc.get("score"),
+            "points": response_doc.get("points"),
+            "review_locked": True,
+            "message": "Review will be available once the contest ends.",
+            "review": [] # Empty list to prevent answer leakage
+        }
+
     return {
         "title": quiz.get("title"),
-        "score": response_doc.get("score"), # Note: score usually in participants, but we can verify
+        "score": response_doc.get("score"),
+        "points": response_doc.get("points"),
+        "review_locked": False,
         "review": review_data
     }

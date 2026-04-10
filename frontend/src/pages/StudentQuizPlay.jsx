@@ -27,6 +27,9 @@ const StudentQuizPlay = () => {
   const [alreadyDone, setAlreadyDone] = useState(false);
 
   const [currentIdx, setCurrentIdx]  = useState(0);
+  const [fetchedQuestions, setFetchedQuestions] = useState({}); // { index: questionObj }
+  const [loadingQ, setLoadingQ]      = useState(false);
+
   const [answers, setAnswers]        = useState({});   // { qIdx: optionText }
   const [answerMeta, setAnswerMeta]  = useState({});   // { qIdx: { at: ISOStr, elapsed: secs } }
   const [timeLeft, setTimeLeft]      = useState(0);
@@ -69,6 +72,32 @@ const StudentQuizPlay = () => {
     };
     load();
   }, [id, user, navigate]);
+
+  /* ── fetch individual question ── */
+  const fetchQuestion = async (idx) => {
+    if (fetchedQuestions[idx]) return; // already have it
+    setLoadingQ(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(
+        `${API}/quizzes/${id}/questions/${idx}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setFetchedQuestions(prev => ({ ...prev, [idx]: res.data }));
+    } catch (err) {
+      console.error("Failed to fetch question", err);
+      // If unauthorized, maybe session expired
+      if (err.response?.status === 403) alert("Session access issue. Please try refreshing.");
+    } finally {
+      setLoadingQ(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && quiz) {
+      fetchQuestion(currentIdx);
+    }
+  }, [currentIdx, loading, quiz]);
 
   /* ── keep refs in sync with state ── */
   useEffect(() => { answersRef.current = answers; }, [answers]);
@@ -172,11 +201,10 @@ const StudentQuizPlay = () => {
   if (loading) return <Splash msg="Loading your quiz…" />;
   if (alreadyDone) return <AlreadyDoneScreen navigate={navigate} />;
   if (error) return <Splash msg={error} isError />;
-  if (!quiz?.questions?.length) return <Splash msg="This quiz has no questions." />;
   if (submitted) return <SubmittedScreen quiz={quiz} answers={answers} result={submitResult} navigate={navigate} />;
 
-  const total = quiz.questions.length;
-  const currentQ = quiz.questions[currentIdx];
+  const total    = quiz.total_questions || 0;
+  const currentQ = fetchedQuestions[currentIdx];
   const answered = Object.keys(answers).length;
   const pct = Math.round(((currentIdx + 1) / total) * 100);
   const timerWarning = timeLeft <= 60;
@@ -264,9 +292,9 @@ const StudentQuizPlay = () => {
           </div>
 
           <div style={css.qGrid}>
-            {quiz.questions.map((_, idx) => {
+            {[...Array(total)].map((_, idx) => {
               const active   = idx === currentIdx;
-              const answered = !!answers[idx];
+              const isAnswered = !!answers[idx];
               return (
                 <div
                   key={idx}
@@ -276,13 +304,13 @@ const StudentQuizPlay = () => {
                     ...css.qBubble,
                     background: active
                       ? 'linear-gradient(135deg,#2563eb,#1d4ed8)'
-                      : answered ? '#1e3a5f' : '#1e293b',
-                    color: active ? '#fff' : answered ? '#93c5fd' : '#64748b',
+                      : isAnswered ? '#1e3a5f' : '#1e293b',
+                    color: active ? '#fff' : isAnswered ? '#93c5fd' : '#64748b',
                     border: active
                       ? '2px solid #60a5fa'
-                      : answered ? '2px solid #2563eb' : '2px solid transparent',
+                      : isAnswered ? '2px solid #2563eb' : '2px solid transparent',
                     boxShadow: active ? '0 0 0 3px rgba(96,165,250,0.2)' : 'none',
-                    fontWeight: active ? 700 : answered ? 600 : 400
+                    fontWeight: active ? 700 : isAnswered ? 600 : 400
                   }}
                 >
                   {idx + 1}
@@ -303,52 +331,60 @@ const StudentQuizPlay = () => {
         {/* ── QUESTION AREA ────────────────────────────────────── */}
         <main style={css.main}>
           <div style={css.card} className="fade-in" key={currentIdx}>
-
-            {/* Question header */}
-            <div style={css.qHeader}>
-              <div style={css.qBadge}>Question {currentIdx + 1}</div>
-              <div style={{flex:1,height:'1px',background:'#1e293b'}} />
-              <div style={{fontSize:'12px',color:'#475569',whiteSpace:'nowrap'}}>
-                {answers[currentIdx] ? '✅ Answered' : '○ Not answered'}
+            {!currentQ || loadingQ ? (
+              <div style={{ display: 'flex', flex: 1, justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', border: '3px solid #1e293b', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <p style={{ color: '#94a3b8' }}>Loading question...</p>
               </div>
-            </div>
-
-            {/* Question text */}
-            <h2 style={css.qText}>{currentQ.question}</h2>
-
-            {/* Options */}
-            <div style={css.optGrid}>
-              {currentQ.options.map((opt, oIdx) => {
-                const selected = answers[currentIdx] === opt;
-                const label = OPTION_LABELS[oIdx];
-                return (
-                  <div
-                    key={oIdx}
-                    className="opt-card"
-                    onClick={() => handleSelect(currentIdx, opt)}
-                    style={{
-                      ...css.optCard,
-                      borderColor: selected ? '#3b82f6' : '#1e293b',
-                      background: selected
-                        ? 'linear-gradient(135deg, rgba(37,99,235,0.25), rgba(29,78,216,0.15))'
-                        : '#111827',
-                    }}
-                  >
-                    <div style={{
-                      ...css.optLabel,
-                      background: selected ? '#2563eb' : '#1e293b',
-                      color: selected ? '#fff' : '#64748b',
-                    }}>{label}</div>
-                    <div style={{...css.optText, color: selected ? '#eff6ff' : '#cbd5e1'}}>
-                      {opt}
-                    </div>
-                    {selected && (
-                      <div style={{marginLeft:'auto',color:'#60a5fa',fontSize:'18px',flexShrink:0}}>✓</div>
-                    )}
+            ) : (
+              <>
+                {/* Question header */}
+                <div style={css.qHeader}>
+                  <div style={css.qBadge}>Question {currentIdx + 1}</div>
+                  <div style={{flex:1,height:'1px',background:'#1e293b'}} />
+                  <div style={{fontSize:'12px',color:'#475569',whiteSpace:'nowrap'}}>
+                    {answers[currentIdx] ? '✅ Answered' : '○ Not answered'}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                {/* Question text */}
+                <h2 style={css.qText}>{currentQ.question}</h2>
+
+                {/* Options */}
+                <div style={css.optGrid}>
+                  {currentQ.options.map((opt, oIdx) => {
+                    const selected = answers[currentIdx] === opt;
+                    const label = OPTION_LABELS[oIdx];
+                    return (
+                      <div
+                        key={oIdx}
+                        className="opt-card"
+                        onClick={() => handleSelect(currentIdx, opt)}
+                        style={{
+                          ...css.optCard,
+                          borderColor: selected ? '#3b82f6' : '#1e293b',
+                          background: selected
+                            ? 'linear-gradient(135deg, rgba(37,99,235,0.25), rgba(29,78,216,0.15))'
+                            : '#111827',
+                        }}
+                      >
+                        <div style={{
+                          ...css.optLabel,
+                          background: selected ? '#2563eb' : '#1e293b',
+                          color: selected ? '#fff' : '#64748b',
+                        }}>{label}</div>
+                        <div style={{...css.optText, color: selected ? '#eff6ff' : '#cbd5e1'}}>
+                          {opt}
+                        </div>
+                        {selected && (
+                          <div style={{marginLeft:'auto',color:'#60a5fa',fontSize:'18px',flexShrink:0}}>✓</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {/* Navigation */}
             <div style={css.navRow}>
@@ -429,7 +465,7 @@ const AlreadyDoneScreen = ({ navigate }) => (
 
 /* ── SubmittedScreen ────────────────────────────────────────────── */
 const SubmittedScreen = ({ quiz, answers, result, navigate }) => {
-  const total    = quiz.questions.length;
+  const total    = quiz.total_questions || 0;
   const answered = result?.answered ?? Object.keys(answers).length;
   return (
     <div style={{

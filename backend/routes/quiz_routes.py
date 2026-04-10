@@ -190,12 +190,49 @@ def attempt_quiz(quiz_id: str, background_tasks: BackgroundTasks, current_user: 
     # Notify admin dashboard in background
     background_tasks.add_task(notify_admins, quiz_id)
     
-    # Strip correct answers before sending
-    safe_quiz = serialize_quiz(quiz)
-    for q in safe_quiz.get("questions", []):
-        q.pop("correctAnswer", None)  # Prevent cheating by removing answer keys
+    # Strip questions before sending to prevent mass-scraping via Network tab
+    session_data = serialize_quiz(quiz)
+    session_data.pop("questions", None)
+    
+    # Include total questions count for frontend progress bar
+    session_data["total_questions"] = len(quiz.get("questions", []))
 
-    return safe_quiz
+    return session_data
+
+# ✅ GET SINGLE QUESTION (ONE-BY-ONE FETCH)
+@router.get("/quizzes/{quiz_id}/questions/{index}")
+def get_quiz_question(quiz_id: str, index: int, current_user: dict = Depends(get_current_user)):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
+    # 1. Check if participant exists and is allowed to take this quiz
+    email = current_user.get("sub")
+    participant = _participants_col().find_one({"email": email, "quiz_id": quiz_id})
+    if not participant:
+        raise HTTPException(status_code=403, detail="You must start the quiz first.")
+    
+    if participant.get("kicked") or participant.get("completed"):
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    # 2. Fetch the quiz and get the specific question
+    quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    
+    questions = quiz.get("questions", [])
+    if index < 0 or index >= len(questions):
+        raise HTTPException(status_code=404, detail="Question index out of bounds")
+    
+    q = questions[index]
+    
+    # 3. Strip correct answer securely
+    safe_q = {
+        "question": q.get("question"),
+        "options": q.get("options"),
+        "index": index
+    }
+    
+    return safe_q
 
 
 # ✅ SUBMIT QUIZ
@@ -255,9 +292,16 @@ def submit_quiz(
             answered_at = now_utc
 
         if 0 <= idx < len(questions):
-            correct = str(questions[idx].get("correctAnswer", "")).strip()
+            q_data = questions[idx]
+            correct = q_data.get("correctAnswer") or q_data.get("correct_answer")
+            
+            # Map index to option text if needed
+            if isinstance(correct, int) and 0 <= correct < len(q_data.get("options", [])):
+                correct = q_data["options"][correct]
+            
+            correct = str(correct or "").strip()
             is_correct = (selected == correct)
-            q_text = questions[idx].get("question", "")
+            q_text = q_data.get("question", "")
         else:
             is_correct = False
             q_text = ""
@@ -291,11 +335,28 @@ def submit_quiz(
 
     # ── Update participants row ─────────────────────────────────────────────
     total_questions = len(questions)
-    answered_count = len(answers_arr)
     start_time = participant.get("start_time")
     if start_time and start_time.tzinfo is None:
         start_time = start_time.replace(tzinfo=timezone.utc)
+    
     time_taken = int((now_utc - start_time).total_seconds()) if start_time else 0
+    
+    # Calculate competitive points
+    # Formula: (Correct Questions * 1000) + (Remaining Duration in Seconds)
+    try:
+        duration_val = quiz.get("duration", "30")
+        # Handle cases like "30m", "30", or int 30
+        if isinstance(duration_val, str):
+            duration_str = duration_val.lower().replace("m", "").strip()
+            duration_mins = int(duration_str)
+        else:
+            duration_mins = int(duration_val)
+    except:
+        duration_mins = 30
+        
+    allowed_secs = duration_mins * 60
+    time_bonus = max(0, allowed_secs - time_taken)
+    points = (score * 1000) + time_bonus
 
     _participants_col().update_one(
         {"email": email_str, "quiz_id": quiz_id},
@@ -303,10 +364,10 @@ def submit_quiz(
             "completed": True,
             "end_time": now_utc,
             "score": score,
+            "points": points,
             "total_questions": total_questions,
-            "answered_questions": answered_count,
-            "time_taken_seconds": time_taken,
-            "percentage": round((score / total_questions) * 100, 2) if total_questions else 0,
+            "percentage": round((score / total_questions) * 100, 2) if total_questions > 0 else 0,
+            "time_taken_seconds": time_taken
         }}
     )
 
@@ -315,7 +376,7 @@ def submit_quiz(
 
     return {
         "message": "Quiz submitted successfully",
-        "answered": answered_count,
+        "answered": len(answers_arr),
         "total": total_questions,
         "score": score,
         "percentage": round((score / total_questions) * 100, 2) if total_questions else 0,
@@ -389,10 +450,10 @@ def update_quiz(quiz_id: str, updated_data: dict):
 @router.get("/quizzes/{quiz_id}/leaderboard")
 def get_leaderboard(quiz_id: str):
     try:
-        # Fetch completed participants sorted exactly as rules demand
+        # Sort by points (Corrects * 1000 + Time Bonus)
         records = list(
             _participants_col().find({"quiz_id": quiz_id, "completed": True})
-            .sort([("score", -1), ("time_taken_seconds", 1)])
+            .sort("points", -1)
         )
         
         # We need names! We could do a manual merge here since list is likely small.
@@ -401,21 +462,104 @@ def get_leaderboard(quiz_id: str):
         db = get_db()
         users_in_quiz = {u["email"]: u for u in db.users.find({"email": {"$in": [r["email"] for r in records]}})}
         
+        from datetime import datetime, timezone
         leaderboard = []
         for i, s in enumerate(records):
             email = s.get("email")
             user_doc = users_in_quiz.get(email, {})
+            
+            # Dynamic points calculation for legacy records
+            pts = s.get("points")
+            if pts is None or pts == 0:
+                score_val = s.get("score", 0)
+                time_val = s.get("time_taken_seconds", 0)
+                # We need the quiz duration to calculate time bonus
+                quiz = db.quizzes.find_one({"_id": ObjectId(quiz_id)})
+                try:
+                    dur = int(str(quiz.get("duration", "30")).lower().replace("m", "").strip())
+                except:
+                    dur = 30
+                pts = (score_val * 1000) + max(0, (dur * 60) - time_val)
+
             leaderboard.append({
                 "rank": i + 1,
                 "name": user_doc.get("name") or "Anonymous",
                 "email": email,
                 "score": s.get("score", 0),
+                "points": pts,
                 "percentage": s.get("percentage", 0),
                 "time_taken_seconds": s.get("time_taken_seconds", 0),
                 "picture": user_doc.get("picture", "")
             })
             
-        return {"leaderboard": leaderboard, "total": len(leaderboard)}
+        # Final sort by points descending (ensures legacy records are correctly ranked)
+        leaderboard.sort(key=lambda x: x["points"], reverse=True)
+        
+        # Re-assign ranks based on sorted order
+        for i, row in enumerate(leaderboard):
+            row["rank"] = i + 1
+
+        return {
+            "total": len(records),
+            "leaderboard": leaderboard
+        }
     except Exception as e:
         print(f"Error fetching leaderboard: {e}")
         return {"leaderboard": [], "total": 0}
+
+
+@router.get("/quizzes/{quiz_id}/review")
+def get_attempt_review(quiz_id: str, current_user: dict = Depends(get_current_user)):
+    email = current_user.get("sub")
+    
+    # 1. Fetch participant submission
+    resp = _responses_col().find_one({"email": email, "quiz_id": quiz_id})
+    if not resp:
+        raise HTTPException(status_code=404, detail="No submission found.")
+    
+    # 2. Fetch quiz to check end_time
+    quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found.")
+    
+    end_time = parse_dt(quiz.get("end_time"))
+    now = datetime.now(timezone.utc)
+    
+    # 3. Security Lockdown: If contest hasn't ended, hide correct answers
+    contest_over = (end_time and now >= end_time)
+    
+    review_data = {
+        "quiz_title": quiz.get("title"),
+        "submitted_at": resp.get("submitted_at"),
+        "contest_over": contest_over,
+        "answers": []
+    }
+    
+    responses = resp.get("answers", [])
+    questions = quiz.get("questions", [])
+    
+    for r in responses:
+        idx = r.get("question_index")
+        q_text = "Question " + str(idx+1)
+        correct_ans = "Hidden until contest ends"
+        is_correct = None
+        
+        if 0 <= idx < len(questions):
+            q_data = questions[idx]
+            q_text = q_data.get("question")
+            
+            if contest_over:
+                correct_ans = q_data.get("correctAnswer") or q_data.get("correct_answer")
+                # Map index to text
+                if isinstance(correct_ans, int) and 0 <= correct_ans < len(q_data.get("options", [])):
+                    correct_ans = q_data["options"][correct_ans]
+                is_correct = r.get("is_correct")
+        
+        review_data["answers"].append({
+            "question": q_text,
+            "selected": r.get("selected_option"),
+            "correct": correct_ans,
+            "is_correct": is_correct
+        })
+        
+    return review_data

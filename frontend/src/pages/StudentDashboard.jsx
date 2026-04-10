@@ -64,6 +64,10 @@ const StudentDashboard = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
+      if (data.review_locked) {
+        alert(data.message || "Detailed review is locked until the contest ends.");
+        return;
+      }
       setSelectedReview(data);
     } catch (error) {
       console.error('Failed to fetch review:', error);
@@ -220,8 +224,12 @@ const StudentDashboard = () => {
                           </div>
                           <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '24px', fontWeight: 'bold', color: att.percentage >= 70 ? '#16a34a' : '#dc2626' }}>{att.percentage}%</div>
-                              <div style={{ fontSize: '12px', color: '#999' }}>{att.score}/{att.total_questions} Points</div>
+                              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e63b5' }}>{att.points || 0}</div>
+                              <div style={{ fontSize: '11px', color: '#999', textTransform: 'uppercase' }}>Points Earned</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '18px', fontWeight: 'bold', color: att.percentage >= 70 ? '#16a34a' : '#dc2626' }}>{att.percentage}%</div>
+                              <div style={{ fontSize: '12px', color: '#999' }}>{att.score}/{att.total_questions} Q</div>
                             </div>
                             <button 
                               className="view-btn" 

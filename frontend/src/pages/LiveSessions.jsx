@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
-import { Users, Trash2, Clock, Trophy, ChevronRight, X, RefreshCw } from "lucide-react";
+import { Users, Trash2, Clock, Trophy, ChevronRight, X, RefreshCw, Maximize } from "lucide-react";
 import axios from "axios";
 
 const API = "http://127.0.0.1:8000";
@@ -40,7 +40,7 @@ const LiveSessions = () => {
     setModalLoading(true);
     try {
       const token = localStorage.getItem("token");
-      
+
       // Fetch Active Participants
       const activeRes = await axios.get(`${API}/auth/admin/live-sessions/${quizId}/active-participants`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -52,7 +52,7 @@ const LiveSessions = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLeaderboard(leaderboardRes.data.leaderboard || []);
-      
+
     } catch (err) {
       console.error("Failed to fetch modal data", err);
     } finally {
@@ -110,13 +110,13 @@ const LiveSessions = () => {
     if (!window.confirm(`Kick ${name || email} from the quiz? They will lose their current progress.`)) {
       return;
     }
-    
+
     try {
       const token = localStorage.getItem("token");
       await axios.delete(`${API}/auth/admin/live-sessions/${selectedQuiz._id}/participants/${email}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       // Refresh immediately
       fetchModalData(selectedQuiz._id);
     } catch (err) {
@@ -125,7 +125,7 @@ const LiveSessions = () => {
     }
   };
 
-  if (loading) return <AdminLayout><h2 style={{color: "#1e293b"}}>Loading Live Sessions...</h2></AdminLayout>;
+  if (loading) return <AdminLayout><h2 style={{ color: "#1e293b" }}>Loading Live Sessions...</h2></AdminLayout>;
 
   return (
     <AdminLayout>
@@ -144,7 +144,7 @@ const LiveSessions = () => {
           </div>
         ) : (
           liveQuizzes.map(quiz => (
-            <div 
+            <div
               key={quiz._id}
               onClick={() => handleCardClick(quiz)}
               style={{
@@ -168,11 +168,11 @@ const LiveSessions = () => {
               }}
             >
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: "linear-gradient(90deg, #3b82f6, #ec4899)" }} />
-              
+
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
                 <h3 style={{ margin: 0, fontSize: "18px", color: "#0f172a", flex: 1, paddingRight: "10px" }}>{quiz.title}</h3>
-                <span style={{ 
-                  background: "#fee2e2", color: "#dc2626", padding: "4px 8px", 
+                <span style={{
+                  background: "#fee2e2", color: "#dc2626", padding: "4px 8px",
                   borderRadius: "12px", fontSize: "12px", fontWeight: "bold",
                   display: "flex", alignItems: "center", gap: "4px",
                   animation: "pulse 2s infinite"
@@ -181,12 +181,12 @@ const LiveSessions = () => {
                   LIVE
                 </span>
               </div>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", marginBottom: "20px" }}>
                 <Users size={18} />
                 <span style={{ fontWeight: 600, fontSize: "16px" }}>{quiz.participants || 0} Total Entering</span>
               </div>
-              
+
               <div style={{ display: "flex", justifyContent: "flex-end", color: "#3b82f6", fontSize: "14px", fontWeight: 500, alignItems: "center", gap: "4px" }}>
                 Manage Session <ChevronRight size={16} />
               </div>
@@ -221,16 +221,28 @@ const LiveSessions = () => {
           }}>
             {/* Modal Header */}
             <div style={{ padding: "20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0, fontSize: "20px", color: "#0f172a" }}>{selectedQuiz.title}</h2>
                 <div style={{ color: "#64748b", fontSize: "14px", marginTop: "4px" }}>Live Session Management</div>
               </div>
-              <button 
-                onClick={closeModal}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px" }}
-              >
-                <X size={24} />
-              </button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                    onClick={() => window.open(`/admin/leaderboard/${selectedQuiz._id}`, '_blank')}
+                    style={{ 
+                        background: "#0f172a", color: "white", border: "none", 
+                        padding: "8px 16px", borderRadius: "8px", cursor: "pointer",
+                        fontSize: "13px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px"
+                    }}
+                >
+                    <Maximize size={16} /> Projector Mode
+                </button>
+                <button 
+                  onClick={closeModal}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px" }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             {/* Modal Tabs */}
@@ -245,7 +257,7 @@ const LiveSessions = () => {
                   display: "flex", alignItems: "center", gap: "8px"
                 }}
               >
-                <Clock size={16} /> Active (<span style={{color: activeParticipants.length > 0 ? "#16a34a" : "inherit"}}>{activeParticipants.length}</span>)
+                <Clock size={16} /> Active (<span style={{ color: activeParticipants.length > 0 ? "#16a34a" : "inherit" }}>{activeParticipants.length}</span>)
               </button>
               <button
                 onClick={() => setActiveTab("leaderboard")}
@@ -327,6 +339,7 @@ const LiveSessions = () => {
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600, width: "60px" }}>Rank</th>
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Student</th>
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Score</th>
+                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Points</th>
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Accuracy</th>
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Time</th>
                             <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600, width: "80px" }}>Kick</th>
@@ -344,6 +357,9 @@ const LiveSessions = () => {
                               </td>
                               <td style={{ padding: "12px 16px", fontWeight: 600, color: "#0f172a" }}>
                                 {user.score}
+                              </td>
+                              <td style={{ padding: "12px 16px", fontWeight: 700, color: "#3b82f6" }}>
+                                {user.points || 0}
                               </td>
                               <td style={{ padding: "12px 16px", color: "#475569" }}>
                                 {user.percentage}%
@@ -373,7 +389,7 @@ const LiveSessions = () => {
                 </div>
               )}
             </div>
-            
+
           </div>
         </div>
       )}
