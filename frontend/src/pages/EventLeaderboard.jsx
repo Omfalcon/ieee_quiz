@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Trophy, Clock, User, ArrowLeft, Medal, Crown, Star, Maximize, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { useTheme, ThemeToggle } from '../context/ThemeContext';
 
 const API = "http://127.0.0.1:8000";
 
 const EventLeaderboard = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { theme, tokens } = useTheme();
     const [leaderboard, setLeaderboard] = useState([]);
     const [quizInfo, setQuizInfo] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -47,26 +49,31 @@ const EventLeaderboard = () => {
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#020617' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: tokens.bg }}>
                 <div style={{ textAlign: 'center' }}>
-                    <RefreshCw size={48} style={{ color: '#3b82f6', marginBottom: '16px' }} />
-                    <p style={{ fontSize: '18px', fontWeight: '600', color: '#94a3b8' }}>Initializing Live Stream...</p>
+                    <RefreshCw size={48} style={{ color: tokens.primary, marginBottom: '16px' }} className="animate-spin" />
+                    <p style={{ fontSize: '18px', fontWeight: '600', color: tokens.textMuted }}>Initializing Live Stream...</p>
                 </div>
             </div>
         );
     }
 
+    const bgGradient = theme === 'dark' 
+        ? 'radial-gradient(circle at top, #1e293b 0%, #020617 100%)'
+        : 'radial-gradient(circle at top, #f0f7ff 0%, #ffffff 100%)';
+
     return (
         <div style={{ 
             minHeight: '100vh', 
-            background: 'radial-gradient(circle at top, #1e293b 0%, #020617 100%)', 
-            color: 'white', 
+            background: bgGradient,
+            color: tokens.text, 
             padding: '40px 20px',
-            fontFamily: "'Inter', sans-serif"
+            fontFamily: "'Inter', sans-serif",
+            transition: 'background 0.3s, color 0.3s'
         }}>
             {/* Control Bar (Auto-hides in some contexts, simplified here) */}
             <div style={{ 
-                position: 'fixed', top: '20px', left: '20px', right: '20px', 
+                position: 'fixed', top: '24px', left: '24px', right: '24px', 
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 zIndex: 100
             }}>
@@ -74,32 +81,36 @@ const EventLeaderboard = () => {
                     onClick={() => navigate(-1)}
                     style={{ 
                         display: 'flex', alignItems: 'center', gap: '8px', 
-                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
-                        color: '#94a3b8', padding: '8px 16px', borderRadius: '12px',
-                        cursor: 'pointer', fontWeight: '600', backdropFilter: 'blur(10px)'
+                        background: tokens.surface, border: `1px solid ${tokens.border}`, 
+                        color: tokens.textMuted, padding: '10px 20px', borderRadius: '14px',
+                        cursor: 'pointer', fontWeight: '600', backdropFilter: 'blur(10px)',
+                        boxShadow: tokens.cardShadow
                     }}
                 >
-                    <ArrowLeft size={20} /> Exit
+                    <ArrowLeft size={18} /> Exit
                 </button>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <ThemeToggle />
                     <div style={{ 
-                         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
-                         color: '#10b981', padding: '8px 16px', borderRadius: '12px',
-                         fontSize: '12px', fontWeight: '700', backdropFilter: 'blur(10px)',
-                         display: 'flex', alignItems: 'center', gap: '8px'
+                         background: tokens.surface, border: `1px solid ${tokens.border}`, 
+                         color: tokens.success, padding: '10px 20px', borderRadius: '14px',
+                         fontSize: '12px', fontWeight: '800', backdropFilter: 'blur(10px)',
+                         display: 'flex', alignItems: 'center', gap: '8px',
+                         boxShadow: tokens.cardShadow
                     }}>
-                        <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 10px #10b981' }} />
-                        LIVE UPDATING
+                        <div style={{ width: '8px', height: '8px', background: tokens.success, borderRadius: '50%', boxShadow: `0 0 10px ${tokens.success}` }} />
+                        <span style={{ letterSpacing: '1px' }}>LIVE STREAM</span>
                     </div>
                     <button 
                         onClick={toggleFullScreen}
                         style={{ 
-                            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
-                            color: 'white', padding: '8px 16px', borderRadius: '12px',
-                            cursor: 'pointer', backdropFilter: 'blur(10px)'
+                            background: tokens.surface, border: `1px solid ${tokens.border}`, 
+                            color: tokens.text, padding: '10px 20px', borderRadius: '14px',
+                            cursor: 'pointer', backdropFilter: 'blur(10px)',
+                            boxShadow: tokens.cardShadow
                         }}
                     >
-                        <Maximize size={20} />
+                        <Maximize size={18} />
                     </button>
                 </div>
             </div>
@@ -133,17 +144,18 @@ const EventLeaderboard = () => {
                     {leaderboard[1] && (
                         <div style={{ alignSelf: 'flex-end', animation: 'slideInLeft 0.8s ease-out' }}>
                             <div style={{ 
-                                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
+                                background: tokens.surface, border: `1px solid ${tokens.border}`, 
                                 borderRadius: '32px', padding: '40px 30px', textAlign: 'center', 
-                                backdropFilter: 'blur(20px)', position: 'relative', overflow: 'hidden'
+                                backdropFilter: 'blur(20px)', position: 'relative', overflow: 'hidden',
+                                boxShadow: tokens.cardShadow
                             }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#94a3b8' }} />
-                                <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: '#94a3b822', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: 'rgba(148,163,184,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Medal size={40} color="#94a3b8" />
                                 </div>
-                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[1]?.name || "Challenger"}</h3>
-                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#94a3b8' }}>{leaderboard[1]?.points?.toLocaleString() || 0}</div>
-                                <div style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>RANK #2</div>
+                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px', color: tokens.text }}>{leaderboard[1]?.name || "Challenger"}</h3>
+                                <div style={{ fontSize: '32px', fontWeight: '900', color: tokens.primary }}>{leaderboard[1]?.points?.toLocaleString() || 0}</div>
+                                <div style={{ color: tokens.textMuted, fontSize: '14px', marginTop: '4px', fontWeight: 700 }}>RANK #2</div>
                             </div>
                         </div>
                     )}
@@ -152,18 +164,19 @@ const EventLeaderboard = () => {
                     {leaderboard[0] && (
                         <div style={{ animation: 'bounceIn 1s cubic-bezier(0.68, -0.55, 0.265, 1.55)' }}>
                             <div style={{ 
-                                background: 'rgba(251, 191, 36, 0.05)', border: '2px solid #fbbf24', 
+                                background: theme === 'dark' ? 'rgba(251, 191, 36, 0.05)' : 'rgba(251, 191, 36, 0.1)', 
+                                border: '2px solid #fbbf24', 
                                 borderRadius: '40px', padding: '60px 40px', textAlign: 'center', 
                                 backdropFilter: 'blur(20px)', position: 'relative', overflow: 'hidden',
-                                transform: 'scale(1.1)', boxShadow: '0 0 50px rgba(251, 191, 36, 0.1)'
+                                transform: 'scale(1.1)', boxShadow: '0 20px 60px rgba(251, 191, 36, 0.15)'
                             }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#fbbf24', boxShadow: '0 0 15px #fbbf24' }} />
-                                <div style={{ width: '100px', height: '100px', margin: '0 auto 24px', background: '#fbbf2422', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: '100px', height: '100px', margin: '0 auto 24px', background: 'rgba(251,191,36,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Crown size={60} color="#fbbf24" />
                                 </div>
-                                <h3 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px' }}>{leaderboard[0]?.name || "Champion"}</h3>
+                                <h3 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px', color: tokens.text }}>{leaderboard[0]?.name || "Champion"}</h3>
                                 <div style={{ fontSize: '48px', fontWeight: '900', color: '#fbbf24' }}>{leaderboard[0]?.points?.toLocaleString() || 0}</div>
-                                <div style={{ color: '#fbbf24', fontSize: '14px', fontWeight: '700', letterSpacing: '2px', marginTop: '8px' }}>CHAMPION</div>
+                                <div style={{ color: '#fbbf24', fontSize: '14px', fontWeight: '800', letterSpacing: '3px', marginTop: '8px' }}>GRAND CHAMPION</div>
                             </div>
                         </div>
                     )}
@@ -172,17 +185,18 @@ const EventLeaderboard = () => {
                     {leaderboard[2] && (
                         <div style={{ alignSelf: 'flex-end', animation: 'slideInRight 0.8s ease-out' }}>
                             <div style={{ 
-                                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', 
+                                background: tokens.surface, border: `1px solid ${tokens.border}`, 
                                 borderRadius: '32px', padding: '40px 30px', textAlign: 'center', 
-                                backdropFilter: 'blur(20px)', position: 'relative', overflow: 'hidden'
+                                backdropFilter: 'blur(20px)', position: 'relative', overflow: 'hidden',
+                                boxShadow: tokens.cardShadow
                             }}>
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: '#f59e0b' }} />
-                                <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: '#92400e22', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Star size={40} color="#f59e0b" />
                                 </div>
-                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[2]?.name || "Challenger"}</h3>
+                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px', color: tokens.text }}>{leaderboard[2]?.name || "Challenger"}</h3>
                                 <div style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b' }}>{leaderboard[2]?.points?.toLocaleString() || 0}</div>
-                                <div style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>RANK #3</div>
+                                <div style={{ color: tokens.textMuted, fontSize: '14px', marginTop: '4px', fontWeight: 700 }}>RANK #3</div>
                             </div>
                         </div>
                     )}
@@ -190,52 +204,48 @@ const EventLeaderboard = () => {
 
                 {/* Others Table */}
                 <div style={{ 
-                    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', 
+                    background: tokens.surface, border: `1px solid ${tokens.border}`, 
                     borderRadius: '32px', padding: '40px', backdropFilter: 'blur(10px)',
-                    marginBottom: '60px'
+                    marginBottom: '60px', boxShadow: tokens.cardShadow
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', padding: '0 20px' }}>
-                        <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Full Rankings</h2>
-                        <div style={{ color: '#64748b', fontSize: '14px' }}>Last refined: {lastUpdated.toLocaleTimeString()}</div>
+                        <h2 style={{ fontSize: '24px', fontWeight: '800', color: tokens.text }}>Full Rankings</h2>
+                        <div style={{ color: tokens.textMuted, fontSize: '14px', fontWeight: 600 }}>Refreshed: {lastUpdated.toLocaleTimeString()}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         {leaderboard.length > 3 ? (
                             leaderboard.slice(3).map((user, idx) => (
                                 <div key={user.email} style={{ 
                                     display: 'flex', alignItems: 'center', gap: '20px',
-                                    background: 'rgba(255,255,255,0.02)', padding: '20px 30px', 
-                                    borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)',
-                                    transition: 'all 0.3s'
+                                    background: tokens.surfaceHover, padding: '24px 32px', 
+                                    borderRadius: '24px', border: `1px solid ${tokens.border}`,
+                                    transition: 'all 0.2s',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
                                 }}>
-                                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#475569', width: '40px' }}>#{idx + 4}</div>
+                                    <div style={{ fontSize: '18px', fontWeight: '900', color: tokens.textMuted, width: '40px' }}>#{idx + 4}</div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '18px', fontWeight: '600' }}>{user?.name || "Participant"}</div>
-                                        <div style={{ fontSize: '12px', color: '#475569' }}>{user?.email?.split('@')[0] || "anon"}***@***</div>
+                                        <div style={{ fontSize: '18px', fontWeight: '700', color: tokens.text }}>{user?.name || "Participant"}</div>
+                                        <div style={{ fontSize: '12px', color: tokens.textMuted, fontWeight: 500 }}>{user?.email?.split('@')[0] || "anon"}***</div>
                                     </div>
                                     <div style={{ textAlign: 'center', minWidth: '100px' }}>
-                                        <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>ACCURACY</div>
-                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#10b981' }}>{user?.percentage || 0}%</div>
+                                        <div style={{ fontSize: '12px', color: tokens.textMuted, marginBottom: '4px', fontWeight: 700 }}>ACCURACY</div>
+                                        <div style={{ fontSize: '16px', fontWeight: '800', color: tokens.success }}>{user?.percentage || 0}%</div>
                                     </div>
                                     <div style={{ textAlign: 'center', minWidth: '100px' }}>
-                                        <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>TIME</div>
-                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#3b82f6' }}>{user?.time_taken_seconds || 0}s</div>
+                                        <div style={{ fontSize: '12px', color: tokens.textMuted, marginBottom: '4px', fontWeight: 700 }}>SPEED</div>
+                                        <div style={{ fontSize: '16px', fontWeight: '800', color: tokens.primary }}>{user?.time_taken_seconds || 0}s</div>
                                     </div>
-                                    <div style={{ fontSize: '24px', fontWeight: '900', color: 'white', minWidth: '120px', textAlign: 'right' }}>
+                                    <div style={{ fontSize: '26px', fontWeight: '900', color: tokens.text, minWidth: '140px', textAlign: 'right' }}>
                                         {user?.points?.toLocaleString?.() || 0}
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#475569' }}>
+                            <div style={{ textAlign: 'center', padding: '60px', color: tokens.textMuted, fontWeight: 500, fontStyle: 'italic' }}>
                                 Waiting for more participants to cross the finish line...
                             </div>
                         )}
                     </div>
-                </div>
-                
-                {/* Footer Brand */}
-                <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.3 }}>
-                    <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '4px' }}>POWERED BY ANTIGRAVITY</div>
                 </div>
             </div>
 

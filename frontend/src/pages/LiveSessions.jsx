@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import AdminLayout from "../components/admin/AdminLayout";
 import { Users, Trash2, Clock, Trophy, ChevronRight, X, RefreshCw, Maximize, ExternalLink } from "lucide-react";
 import axios from "axios";
+import { useTheme } from "../context/ThemeContext";
 
 const API = "http://127.0.0.1:8000";
 
 const LiveSessions = () => {
+  const { tokens, theme } = useTheme();
   const [liveQuizzes, setLiveQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -125,12 +127,24 @@ const LiveSessions = () => {
     }
   };
 
-  if (loading) return <AdminLayout><h2 style={{ color: "#1e293b" }}>Loading Live Sessions...</h2></AdminLayout>;
+  if (loading) return (
+    <AdminLayout>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: tokens.primary }}>
+        <RefreshCw size={24} className="animate-spin" />
+        <h2 style={{ color: tokens.text }}>Synchronizing Live Data...</h2>
+      </div>
+    </AdminLayout>
+  );
 
   return (
     <AdminLayout>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h1 style={{ margin: 0, color: "#0f172a" }}>Live Sessions</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', background: tokens.primary, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+            <Users size={24} />
+          </div>
+          <h1 style={{ margin: 0, color: tokens.text, fontSize: '28px', fontWeight: 800 }}>Live Sessions</h1>
+        </div>
       </div>
 
       <div style={{
@@ -139,8 +153,8 @@ const LiveSessions = () => {
         gap: "20px"
       }}>
         {liveQuizzes.length === 0 ? (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "#64748b", background: "#fff", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
-            No live quizzes currently active. Make a quiz "Live" from the Manage Quizzes page.
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: tokens.textMuted, background: tokens.surface, borderRadius: "8px", border: `1px solid ${tokens.border}` }}>
+            No live quizzes currently active.
           </div>
         ) : (
           liveQuizzes.map(quiz => (
@@ -148,12 +162,12 @@ const LiveSessions = () => {
               key={quiz._id}
               onClick={() => handleCardClick(quiz)}
               style={{
-                background: "#ffffff",
+                background: tokens.surface,
                 borderRadius: "12px",
-                border: "1px solid #3b82f6", // Blue border indicates live
+                border: `1px solid ${tokens.border}`,
                 padding: "20px",
                 cursor: "pointer",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                boxShadow: tokens.cardShadow,
                 transition: "transform 0.2s, box-shadow 0.2s",
                 position: "relative",
                 overflow: "hidden"
@@ -170,25 +184,25 @@ const LiveSessions = () => {
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: "linear-gradient(90deg, #3b82f6, #ec4899)" }} />
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                <h3 style={{ margin: 0, fontSize: "18px", color: "#0f172a", flex: 1, paddingRight: "10px" }}>{quiz.title}</h3>
+                <h3 style={{ margin: 0, fontSize: "18px", color: tokens.text, flex: 1, paddingRight: "10px" }}>{quiz.title}</h3>
                 <span style={{
-                  background: "#fee2e2", color: "#dc2626", padding: "4px 8px",
+                  background: "rgba(16,185,129,0.1)", color: tokens.success, padding: "4px 8px",
                   borderRadius: "12px", fontSize: "12px", fontWeight: "bold",
                   display: "flex", alignItems: "center", gap: "4px",
                   animation: "pulse 2s infinite"
                 }}>
-                  <div style={{ width: "6px", height: "6px", background: "#dc2626", borderRadius: "50%" }}></div>
+                  <div style={{ width: "6px", height: "6px", background: tokens.success, borderRadius: "50%" }}></div>
                   LIVE
                 </span>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#475569", marginBottom: "20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: tokens.textMuted, marginBottom: "20px" }}>
                 <Users size={18} />
-                <span style={{ fontWeight: 600, fontSize: "16px" }}>{quiz.participants || 0} Total Entering</span>
+                <span style={{ fontWeight: 600, fontSize: "16px" }}>{quiz.participants || 0} Participants</span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", color: "#3b82f6", fontSize: "14px", fontWeight: 500, alignItems: "center", gap: "4px" }}>
-                Manage Session <ChevronRight size={16} />
+              <div style={{ display: "flex", justifyContent: "flex-end", color: tokens.primary, fontSize: "14px", fontWeight: 700, alignItems: "center", gap: "4px" }}>
+                Monitor Live Feed <ChevronRight size={16} />
               </div>
 
               <style>{`
@@ -212,18 +226,20 @@ const LiveSessions = () => {
           zIndex: 1000, padding: "20px"
         }}>
           <div style={{
-            background: "#ffffff",
-            borderRadius: "12px",
-            width: "100%", maxWidth: "800px",
+            background: tokens.surface,
+            borderRadius: "16px",
+            width: "100%", maxWidth: "900px",
             maxHeight: "90vh",
             display: "flex", flexDirection: "column",
-            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+            boxShadow: tokens.cardShadow,
+            border: `1px solid ${tokens.border}`,
+            color: tokens.text
           }}>
             {/* Modal Header */}
-            <div style={{ padding: "20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ padding: "24px", borderBottom: `1px solid ${tokens.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ flex: 1 }}>
-                <h2 style={{ margin: 0, fontSize: "20px", color: "#0f172a" }}>{selectedQuiz.title}</h2>
-                <div style={{ color: "#64748b", fontSize: "14px", marginTop: "4px" }}>Live Session Management</div>
+                <h2 style={{ margin: 0, fontSize: "20px", color: tokens.text }}>{selectedQuiz.title}</h2>
+                <div style={{ color: tokens.textMuted, fontSize: "14px", marginTop: "4px" }}>Active Session Monitor</div>
               </div>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button
@@ -252,35 +268,35 @@ const LiveSessions = () => {
             </div>
 
             {/* Modal Tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid #e2e8f0", padding: "0 20px" }}>
+            <div style={{ display: "flex", borderBottom: `1px solid ${tokens.border}`, padding: "0 24px" }}>
               <button
                 onClick={() => setActiveTab("active")}
                 style={{
                   padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
-                  fontSize: "15px", fontWeight: 600,
-                  color: activeTab === "active" ? "#3b82f6" : "#64748b",
-                  borderBottom: activeTab === "active" ? "2px solid #3b82f6" : "2px solid transparent",
+                  fontSize: "15px", fontWeight: 700,
+                  color: activeTab === "active" ? tokens.primary : tokens.textMuted,
+                  borderBottom: activeTab === "active" ? `2px solid ${tokens.primary}` : "2px solid transparent",
                   display: "flex", alignItems: "center", gap: "8px"
                 }}
               >
-                <Clock size={16} /> Active (<span style={{ color: activeParticipants.length > 0 ? "#16a34a" : "inherit" }}>{activeParticipants.length}</span>)
+                <Clock size={16} /> Active (<span style={{ color: activeParticipants.length > 0 ? tokens.success : "inherit" }}>{activeParticipants.length}</span>)
               </button>
               <button
                 onClick={() => setActiveTab("leaderboard")}
                 style={{
                   padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
-                  fontSize: "15px", fontWeight: 600,
-                  color: activeTab === "leaderboard" ? "#3b82f6" : "#64748b",
-                  borderBottom: activeTab === "leaderboard" ? "2px solid #3b82f6" : "2px solid transparent",
+                  fontSize: "15px", fontWeight: 700,
+                  color: activeTab === "leaderboard" ? tokens.primary : tokens.textMuted,
+                  borderBottom: activeTab === "leaderboard" ? `2px solid ${tokens.primary}` : "2px solid transparent",
                   display: "flex", alignItems: "center", gap: "8px"
                 }}
               >
-                <Trophy size={16} /> Finished & Leaderboard ({leaderboard.length})
+                <Trophy size={16} /> Leaderboard ({leaderboard.length})
               </button>
             </div>
 
             {/* Modal Content */}
-            <div style={{ padding: "20px", overflowY: "auto", flex: 1, background: "#f8fafc" }}>
+            <div style={{ padding: "24px", overflowY: "auto", flex: 1, background: theme === 'dark' ? 'rgba(0,0,0,0.2)' : tokens.surfaceHover }}>
               {modalLoading && activeParticipants.length === 0 && leaderboard.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "40px", color: "#64748b" }}>Syncing data...</div>
               ) : activeTab === "active" ? (
@@ -294,28 +310,28 @@ const LiveSessions = () => {
                     <div style={{ background: "#fff", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "14px" }}>
                         <thead>
-                          <tr style={{ background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Student Name</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Started At</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600, width: "80px" }}>Kick</th>
+                          <tr style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderBottom: `1px solid ${tokens.border}` }}>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>Student Name</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>Started At</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px', width: "80px" }}>Kick</th>
                           </tr>
                         </thead>
                         <tbody>
                           {activeParticipants.map(user => (
-                            <tr key={user.email} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                            <tr key={user.email} style={{ borderBottom: `1px solid ${tokens.border}` }}>
                               <td style={{ padding: "12px 16px" }}>
-                                <div style={{ fontWeight: 500, color: "#0f172a" }}>{user.name}</div>
-                                <div style={{ fontSize: "12px", color: "#64748b" }}>{user.email}</div>
+                                <div style={{ fontWeight: 600, color: tokens.text }}>{user.name}</div>
+                                <div style={{ fontSize: "12px", color: tokens.textMuted }}>{user.email}</div>
                               </td>
-                              <td style={{ padding: "12px 16px", color: "#475569" }}>
+                              <td style={{ padding: "12px 16px", color: tokens.text, fontWeight: 500 }}>
                                 {new Date(user.start_time).toLocaleTimeString()}
                               </td>
                               <td style={{ padding: "12px 16px" }}>
                                 <button
                                   onClick={() => handleKickParticipant(user.email, user.name)}
                                   style={{
-                                    background: "#fee2e2", color: "#dc2626", border: "none",
-                                    padding: "6px 10px", borderRadius: "6px", cursor: "pointer",
+                                    background: "rgba(239,68,68,0.1)", color: tokens.danger, border: "none",
+                                    padding: "8px", borderRadius: "8px", cursor: "pointer",
                                     display: "flex", alignItems: "center", justifyContent: "center"
                                   }}
                                   title="Kick Student"
@@ -334,54 +350,53 @@ const LiveSessions = () => {
                 // LEADERBOARD TAB
                 <div>
                   {leaderboard.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px", color: "#64748b", background: "#fff", borderRadius: "8px" }}>
+                    <div style={{ textAlign: "center", padding: "40px", color: tokens.textMuted, background: tokens.surface, borderRadius: "8px" }}>
                       No one has finished this quiz yet.
                     </div>
                   ) : (
-                    <div style={{ background: "#fff", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "14px" }}>
+                    <div style={{ background: tokens.surface, borderRadius: "12px", overflow: "hidden", border: `1px solid ${tokens.border}` }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
                         <thead>
-                          <tr style={{ background: "#f1f5f9", borderBottom: "1px solid #e2e8f0" }}>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600, width: "60px" }}>Rank</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Student</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Score</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Points</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Accuracy</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600 }}>Time</th>
-                            <th style={{ padding: "12px 16px", color: "#475569", fontWeight: 600, width: "80px" }}>Kick</th>
+                          <tr style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', borderBottom: `1px solid ${tokens.border}` }}>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Rank</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Student</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Score</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Points</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Accuracy</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase' }}>Time</th>
+                            <th style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 700, textTransform: 'uppercase', width: "80px" }}>Kick</th>
                           </tr>
                         </thead>
                         <tbody>
                           {leaderboard.map(user => (
-                            <tr key={user.email} style={{ borderBottom: "1px solid #e2e8f0", background: user.rank <= 3 ? "#fefce8" : "#fff" }}>
-                              <td style={{ padding: "12px 16px", fontWeight: "bold", color: user.rank === 1 ? "#d97706" : user.rank === 2 ? "#94a3b8" : user.rank === 3 ? "#b45309" : "#475569" }}>
+                            <tr key={user.email} style={{ borderBottom: `1px solid ${tokens.border}`, background: user.rank <= 3 ? (theme === 'dark' ? 'rgba(251,191,36,0.05)' : 'rgba(251,191,36,0.02)') : 'transparent' }}>
+                              <td style={{ padding: "12px 16px", fontWeight: "900", color: user.rank === 1 ? "#fbbf24" : user.rank === 2 ? "#94a3b8" : user.rank === 3 ? "#f59e0b" : tokens.textMuted }}>
                                 #{user.rank}
                               </td>
                               <td style={{ padding: "12px 16px" }}>
-                                <div style={{ fontWeight: 500, color: "#0f172a" }}>{user.name}</div>
-                                <div style={{ fontSize: "12px", color: "#64748b" }}>{user.email}</div>
+                                <div style={{ fontWeight: 600, color: tokens.text }}>{user.name}</div>
+                                <div style={{ fontSize: "11px", color: tokens.textMuted }}>{user.email}</div>
                               </td>
-                              <td style={{ padding: "12px 16px", fontWeight: 600, color: "#0f172a" }}>
+                              <td style={{ padding: "12px 16px", fontWeight: 700, color: tokens.text }}>
                                 {user.score}
                               </td>
-                              <td style={{ padding: "12px 16px", fontWeight: 700, color: "#3b82f6" }}>
+                              <td style={{ padding: "12px 16px", fontWeight: 800, color: tokens.primary }}>
                                 {user.points || 0}
                               </td>
-                              <td style={{ padding: "12px 16px", color: "#475569" }}>
+                              <td style={{ padding: "12px 16px", color: tokens.success, fontWeight: 700 }}>
                                 {user.percentage}%
                               </td>
-                              <td style={{ padding: "12px 16px", color: "#475569" }}>
+                              <td style={{ padding: "12px 16px", color: tokens.textMuted, fontWeight: 500 }}>
                                 {user.time_taken_seconds}s
                               </td>
                               <td style={{ padding: "12px 16px" }}>
                                 <button
                                   onClick={() => handleKickParticipant(user.email, user.name)}
                                   style={{
-                                    background: "#fee2e2", color: "#dc2626", border: "none",
-                                    padding: "6px 10px", borderRadius: "6px", cursor: "pointer",
+                                    background: "rgba(239,68,68,0.1)", color: tokens.danger, border: "none",
+                                    padding: "8px", borderRadius: "8px", cursor: "pointer",
                                     display: "flex", alignItems: "center", justifyContent: "center"
                                   }}
-                                  title="Ban Student"
                                 >
                                   <Trash2 size={16} />
                                 </button>

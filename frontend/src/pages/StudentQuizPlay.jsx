@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { LogOut, Timer as TimerIcon, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useTheme, ThemeToggle } from '../context/ThemeContext';
+import '../styles/StudentDashboard.css';
 
 const API = "http://127.0.0.1:8000";
 
@@ -19,7 +22,8 @@ const OPTION_LABELS = ['A', 'B', 'C', 'D', 'E'];
 const StudentQuizPlay = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
+  const { theme, tokens } = useTheme();
 
   const [quiz, setQuiz]         = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -210,72 +214,106 @@ const StudentQuizPlay = () => {
   const timerWarning = timeLeft <= 60;
 
   return (
-    <div style={css.root}>
+    <div style={{ ...css.root, background: tokens.bg, color: tokens.text }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: ${theme === 'dark' ? '#1e3358' : '#cbd5e1'}; border-radius: 3px; }
 
         .opt-card { transition: all 0.18s ease; cursor: pointer; }
-        .opt-card:hover { background: #1e293b !important; border-color: #60a5fa !important; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(96,165,250,0.15); }
+        .opt-card:hover { 
+          background: ${tokens.surfaceHover} !important; 
+          border-color: ${tokens.primary} !important; 
+          transform: translateY(-2px); 
+          box-shadow: ${tokens.cardShadow}; 
+        }
 
-        .nav-btn { transition: all 0.18s ease; cursor: pointer; }
+        .nav-btn { transition: all 0.18s ease; cursor: pointer; border: none; }
         .nav-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+        .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .q-bubble { transition: all 0.14s ease; cursor: pointer; }
         .q-bubble:hover { transform: scale(1.1); }
 
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        .timer-warn { animation: pulse 1s infinite; }
+        .timer-warn { animation: pulse 1s infinite; color: ${tokens.danger} !important; }
 
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         .fade-in { animation: fadeIn 0.25s ease both; }
+
+        .play-header {
+          height: 60px;
+          background: ${tokens.navBg};
+          color: ${tokens.navText};
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0 24px;
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+          transition: background 0.3s;
+          gap: 16px;
+        }
       `}</style>
 
       {/* ══ HEADER ══════════════════════════════════════════════ */}
-      <header style={css.header}>
-        <div style={css.logo}>
-          <span style={{color:'#60a5fa',fontWeight:700}}>IEEE</span>
-          <span style={{color:'#f1f5f9',fontWeight:600}}> QuizHub</span>
+      <header className="play-header">
+        <div className="brand-area">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/IEEE_logo.svg/1200px-IEEE_logo.svg.png"
+            alt="IEEE" style={{ height: 20, filter: 'brightness(0) invert(1)' }}
+          />
+          <span className="brand-title">QuizHub</span>
+          <span className="brand-badge">LIVE QUIZ</span>
         </div>
 
-        {/* progress */}
-        <div style={css.progressArea}>
+        {/* progress - Center aligned in header */}
+        <div style={{ ...css.progressArea, flex: '0 1 400px' }}>
           <div style={css.progressLabels}>
-            <span style={{color:'#94a3b8',fontSize:'13px'}}>
-              Question <strong style={{color:'#f1f5f9'}}>{currentIdx+1}</strong> of <strong style={{color:'#f1f5f9'}}>{total}</strong>
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontWeight: 500 }}>
+              Progress: {currentIdx + 1}/{total}
             </span>
-            <span style={{color:'#60a5fa',fontWeight:600,fontSize:'13px'}}>{pct}%</span>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: '12px' }}>{pct}%</span>
           </div>
-          <div style={css.progressTrack}>
-            <div style={{...css.progressFill, width:`${pct}%`}} />
+          <div style={{ ...css.progressTrack, background: 'rgba(255,255,255,0.15)' }}>
+            <div style={{ ...css.progressFill, background: '#fff', width: `${pct}%` }} />
           </div>
         </div>
 
         {/* timer + user */}
-        <div style={css.headerRight}>
+        <div className="header-right">
           <div style={{
             ...css.timerChip,
-            background: timerWarning ? 'rgba(239,68,68,0.15)' : 'rgba(96,165,250,0.1)',
-            borderColor: timerWarning ? '#ef4444' : '#334155',
-            color: timerWarning ? '#f87171' : '#93c5fd'
+            background: timerWarning ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
+            borderColor: timerWarning ? '#ef4444' : 'rgba(255,255,255,0.2)',
+            color: '#fff'
           }} className={timerWarning ? 'timer-warn' : ''}>
-            <span style={{fontSize:'14px'}}>⏱</span>
-            <span style={{fontFamily:'monospace',fontWeight:700,letterSpacing:'1px'}}>{fmtTime(timeLeft)}</span>
+            <TimerIcon size={14} />
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.5px' }}>{fmtTime(timeLeft)}</span>
           </div>
 
-          <div style={css.userChip}>
-            {user?.picture
-              ? <img src={user.picture} alt="av" style={css.avatar} />
-              : <div style={css.avatarFallback}>{(user?.name||'S')[0].toUpperCase()}</div>
-            }
-            <div>
-              <div style={{fontSize:'13px',fontWeight:600,color:'#f1f5f9'}}>{user?.name||'Student'}</div>
-              <div style={{fontSize:'11px',color:'#64748b'}}>#{quiz._id.slice(-5).toUpperCase()}</div>
+          <div className="header-divider" />
+
+          <ThemeToggle />
+
+          <div className="header-user-info">
+            <div className="profile-circle" style={{ width: 30, height: 30, fontSize: 12 }}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'S'}
             </div>
           </div>
+
+          <button
+            className="icon-btn"
+            title="Logout"
+            onClick={() => { if(window.confirm("Quit quiz and logout?")) { logout(); navigate('/login'); } }}
+            style={{ width: 32, height: 32 }}
+          >
+            <LogOut size={14} />
+          </button>
         </div>
       </header>
 
@@ -283,11 +321,11 @@ const StudentQuizPlay = () => {
       <div style={css.body}>
 
         {/* ── SIDEBAR ─────────────────────────────────────────── */}
-        <aside style={css.sidebar}>
-          <div style={{padding:'20px 16px 8px',borderBottom:'1px solid #1e293b'}}>
-            <div style={{fontSize:'11px',fontWeight:600,letterSpacing:'1px',color:'#475569',textTransform:'uppercase'}}>Question Map</div>
-            <div style={{marginTop:'8px',fontSize:'12px',color:'#64748b'}}>
-              <span style={{color:'#34d399',fontWeight:600}}>{answered}</span> / {total} answered
+        <aside style={{ ...css.sidebar, background: tokens.sidebarBg, borderRight: `1px solid ${tokens.border}` }}>
+          <div style={{ padding: '20px 16px 8px', borderBottom: `1px solid ${tokens.border}` }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', color: tokens.textMuted, textTransform: 'uppercase' }}>Question Map</div>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: tokens.textMuted }}>
+              <span style={{ color: tokens.success, fontWeight: 700 }}>{answered}</span> / {total} answered
             </div>
           </div>
 
@@ -303,14 +341,11 @@ const StudentQuizPlay = () => {
                   style={{
                     ...css.qBubble,
                     background: active
-                      ? 'linear-gradient(135deg,#2563eb,#1d4ed8)'
-                      : isAnswered ? '#1e3a5f' : '#1e293b',
-                    color: active ? '#fff' : isAnswered ? '#93c5fd' : '#64748b',
-                    border: active
-                      ? '2px solid #60a5fa'
-                      : isAnswered ? '2px solid #2563eb' : '2px solid transparent',
-                    boxShadow: active ? '0 0 0 3px rgba(96,165,250,0.2)' : 'none',
-                    fontWeight: active ? 700 : isAnswered ? 600 : 400
+                      ? tokens.primary
+                      : isAnswered ? tokens.activeItem : tokens.surfaceHover,
+                    color: active ? '#fff' : isAnswered ? tokens.activeText : tokens.textMuted,
+                    border: `2px solid ${active ? tokens.primary : (isAnswered ? tokens.activeItem : 'transparent')}`,
+                    fontWeight: active ? 700 : 500
                   }}
                 >
                   {idx + 1}
@@ -320,35 +355,37 @@ const StudentQuizPlay = () => {
           </div>
 
           {/* answered count badge */}
-          <div style={css.sidebarFooter}>
+          <div style={{ ...css.sidebarFooter, borderTop: `1px solid ${tokens.border}` }}>
             <div style={css.progressMini}>
-              <div style={{...css.progressMiniFill, width:`${(answered/total)*100}%`}} />
+              <div style={{ ...css.progressMiniFill, width: `${(answered / total) * 100}%` }} />
             </div>
-            <div style={{fontSize:'11px',color:'#475569',marginTop:'6px'}}>{Math.round((answered/total)*100)}% complete</div>
+            <div style={{ fontSize: '11px', color: tokens.textMuted, marginTop: '8px', fontWeight: 500 }}>
+              {Math.round((answered / total) * 100)}% complete
+            </div>
           </div>
         </aside>
 
         {/* ── QUESTION AREA ────────────────────────────────────── */}
         <main style={css.main}>
-          <div style={css.card} className="fade-in" key={currentIdx}>
+          <div style={{ ...css.card, background: tokens.surface, border: `1px solid ${tokens.border}`, boxShadow: tokens.cardShadow }} className="fade-in" key={currentIdx}>
             {!currentQ || loadingQ ? (
-              <div style={{ display: 'flex', flex: 1, justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', border: '3px solid #1e293b', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                <p style={{ color: '#94a3b8' }}>Loading question...</p>
+              <div style={{ display: 'flex', flex: 1, justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ width: '40px', height: '40px', border: `3px solid ${tokens.border}`, borderTopColor: tokens.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <p style={{ color: tokens.textMuted, fontWeight: 500 }}>Loading question...</p>
               </div>
             ) : (
               <>
                 {/* Question header */}
                 <div style={css.qHeader}>
                   <div style={css.qBadge}>Question {currentIdx + 1}</div>
-                  <div style={{flex:1,height:'1px',background:'#1e293b'}} />
-                  <div style={{fontSize:'12px',color:'#475569',whiteSpace:'nowrap'}}>
-                    {answers[currentIdx] ? '✅ Answered' : '○ Not answered'}
+                  <div style={{ flex: 1, height: '1px', background: tokens.border }} />
+                  <div style={{ fontSize: '12px', color: tokens.textMuted, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {answers[currentIdx] ? <><CheckCircle size={14} style={{ color: tokens.success }} /> Answered</> : '○ Not answered'}
                   </div>
                 </div>
 
                 {/* Question text */}
-                <h2 style={css.qText}>{currentQ.question}</h2>
+                <h2 style={{ ...css.qText, color: tokens.text }}>{currentQ.question}</h2>
 
                 {/* Options */}
                 <div style={css.optGrid}>
@@ -362,22 +399,22 @@ const StudentQuizPlay = () => {
                         onClick={() => handleSelect(currentIdx, opt)}
                         style={{
                           ...css.optCard,
-                          borderColor: selected ? '#3b82f6' : '#1e293b',
+                          borderColor: selected ? tokens.primary : tokens.border,
                           background: selected
-                            ? 'linear-gradient(135deg, rgba(37,99,235,0.25), rgba(29,78,216,0.15))'
-                            : '#111827',
+                            ? (theme === 'dark' ? 'rgba(79,142,247,0.1)' : 'rgba(30,99,181,0.05)')
+                            : tokens.surface,
                         }}
                       >
                         <div style={{
                           ...css.optLabel,
-                          background: selected ? '#2563eb' : '#1e293b',
-                          color: selected ? '#fff' : '#64748b',
+                          background: selected ? tokens.primary : (theme === 'dark' ? '#1e3358' : '#f1f5f9'),
+                          color: selected ? '#fff' : tokens.textMuted,
                         }}>{label}</div>
-                        <div style={{...css.optText, color: selected ? '#eff6ff' : '#cbd5e1'}}>
+                        <div style={{ ...css.optText, color: selected ? tokens.activeText : tokens.text, fontWeight: selected ? 600 : 400 }}>
                           {opt}
                         </div>
                         {selected && (
-                          <div style={{marginLeft:'auto',color:'#60a5fa',fontSize:'18px',flexShrink:0}}>✓</div>
+                          <div style={{ marginLeft: 'auto', color: tokens.primary }}><CheckCircle size={18} /></div>
                         )}
                       </div>
                     );
@@ -387,24 +424,24 @@ const StudentQuizPlay = () => {
             )}
 
             {/* Navigation */}
-            <div style={css.navRow}>
+            <div style={{ ...css.navRow, borderTop: `1px solid ${tokens.border}` }}>
               <button
                 className="nav-btn"
-                style={{...css.btn, ...css.btnGhost, visibility: currentIdx > 0 ? 'visible' : 'hidden'}}
+                style={{ ...css.btn, ...css.btnGhost, visibility: currentIdx > 0 ? 'visible' : 'hidden' }}
                 onClick={() => setCurrentIdx(p => p - 1)}
-              > ← Previous </button>
+              > <ChevronLeft size={16} style={{ marginRight: 4 }} /> Previous </button>
 
-              <div style={{display:'flex',gap:'12px'}}>
+              <div style={{ display: 'flex', gap: '12px' }}>
                 {currentIdx < total - 1 ? (
                   <button
                     className="nav-btn"
-                    style={{...css.btn, ...css.btnBlue}}
+                    style={{ ...css.btn, ...css.btnBlue, display: 'flex', alignItems: 'center' }}
                     onClick={() => setCurrentIdx(p => p + 1)}
-                  > Next → </button>
+                  > Next <ChevronRight size={16} style={{ marginLeft: 4 }} /> </button>
                 ) : (
                   <button
                     className="nav-btn"
-                    style={{...css.btn, ...css.btnGreen}}
+                    style={{ ...css.btn, ...css.btnGreen }}
                     onClick={doSubmit}
                     disabled={submitting}
                   > {submitting ? 'Submitting…' : '🏁 Submit Quiz'} </button>
@@ -419,92 +456,105 @@ const StudentQuizPlay = () => {
 };
 
 /* ── Splash ─────────────────────────────────────────────────────── */
-const Splash = ({ msg, isError }) => (
-  <div style={{
-    display:'flex',justifyContent:'center',alignItems:'center',
-    height:'100vh',background:'#0f172a',fontFamily:'Inter,sans-serif',flexDirection:'column',gap:'16px'
-  }}>
-    {!isError && (
-      <div style={{
-        width:'48px',height:'48px',border:'4px solid #1e293b',
-        borderTopColor:'#3b82f6',borderRadius:'50%',
-        animation:'spin 0.8s linear infinite'
-      }}/>
-    )}
-    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    <p style={{color: isError ? '#f87171' : '#94a3b8', fontSize:'16px',textAlign:'center',padding:'0 20px'}}>{msg}</p>
-  </div>
-);
+const Splash = ({ msg, isError }) => {
+  const { tokens } = useTheme();
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      height: '100vh', background: tokens.bg, fontFamily: "'Inter', sans-serif", flexDirection: 'column', gap: '20px',
+      transition: 'background 0.3s'
+    }}>
+      {!isError && (
+        <div style={{
+          width: '48px', height: '48px', border: `4px solid ${tokens.border}`,
+          borderTopColor: tokens.primary, borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <p style={{ color: isError ? tokens.danger : tokens.textMuted, fontSize: '16px', fontWeight: 500, textAlign: 'center', padding: '0 24px' }}>{msg}</p>
+    </div>
+  );
+};
 
 /* ── AlreadyDoneScreen ──────────────────────────────────────────── */
-const AlreadyDoneScreen = ({ navigate }) => (
-  <div style={{
-    display:'flex',justifyContent:'center',alignItems:'center',
-    height:'100vh',background:'#0f172a',fontFamily:'Inter,sans-serif'
-  }}>
+const AlreadyDoneScreen = ({ navigate }) => {
+  const { tokens } = useTheme();
+  return (
     <div style={{
-      background:'#1e293b',borderRadius:'16px',padding:'48px',
-      textAlign:'center',maxWidth:'420px',border:'1px solid #334155'
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      height: '100vh', background: tokens.bg, fontFamily: "'Inter', sans-serif",
+      transition: 'background 0.3s'
     }}>
-      <div style={{fontSize:'56px',marginBottom:'16px'}}>🏆</div>
-      <h2 style={{color:'#f1f5f9',fontSize:'24px',marginBottom:'8px'}}>Already Completed!</h2>
-      <p style={{color:'#94a3b8',marginBottom:'32px',lineHeight:'1.6'}}>
-        You have already submitted this quiz. Each quiz can only be attempted once.
-      </p>
-      <button
-        onClick={() => navigate('/student/dashboard')}
-        style={{
-          padding:'12px 28px',background:'linear-gradient(135deg,#2563eb,#1d4ed8)',
-          border:'none',borderRadius:'8px',color:'#fff',
-          fontWeight:600,fontSize:'15px',cursor:'pointer'
-        }}
-      > Back to Dashboard </button>
+      <div style={{
+        background: tokens.surface, borderRadius: '20px', padding: '48px',
+        textAlign: 'center', maxWidth: '420px', border: `1px solid ${tokens.border}`,
+        boxShadow: tokens.cardShadow
+      }}>
+        <div style={{ fontSize: '56px', marginBottom: '20px' }}>🏆</div>
+        <h2 style={{ color: tokens.text, fontSize: '26px', fontWeight: 800, marginBottom: '12px' }}>Already Completed!</h2>
+        <p style={{ color: tokens.textMuted, marginBottom: '32px', lineHeight: '1.6', fontSize: '15px' }}>
+          You have already submitted this quiz. Each contest entry is recorded once to ensure fair scoring.
+        </p>
+        <button
+          onClick={() => navigate('/student/dashboard')}
+          style={{
+            padding: '12px 32px', background: tokens.primary,
+            border: 'none', borderRadius: '10px', color: '#fff',
+            fontWeight: 700, fontSize: '15px', cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(30,99,181,0.2)'
+          }}
+        > Back to Dashboard </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ── SubmittedScreen ────────────────────────────────────────────── */
 const SubmittedScreen = ({ quiz, answers, result, navigate }) => {
+  const { tokens } = useTheme();
   const total    = quiz.total_questions || 0;
   const answered = result?.answered ?? Object.keys(answers).length;
   return (
     <div style={{
-      display:'flex', justifyContent:'center', alignItems:'center',
-      height:'100vh', background:'#0f172a', fontFamily:'Inter,sans-serif'
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      height: '100vh', background: tokens.bg, fontFamily: "'Inter', sans-serif",
+      transition: 'background 0.3s'
     }}>
       <div style={{
-        background:'linear-gradient(135deg,#1e293b,#0f172a)', borderRadius:'20px', padding:'48px',
-        textAlign:'center', maxWidth:'400px', width:'90%',
-        border:'1px solid #1e3a5f', boxShadow:'0 25px 50px rgba(0,0,0,0.5)'
+        background: tokens.surface, borderRadius: '24px', padding: '48px',
+        textAlign: 'center', maxWidth: '420px', width: '90%',
+        border: `1px solid ${tokens.border}`, boxShadow: tokens.cardShadow
       }}>
-        <div style={{fontSize:'64px', marginBottom:'16px'}}>🎉</div>
-        <h2 style={{color:'#f1f5f9', fontSize:'24px', fontWeight:700, marginBottom:'12px'}}>
+        <div style={{ fontSize: '64px', marginBottom: '20px' }}>🎉</div>
+        <h2 style={{ color: tokens.text, fontSize: '28px', fontWeight: 800, marginBottom: '12px' }}>
           Quiz Submitted!
         </h2>
-        <p style={{color:'#94a3b8', fontSize:'15px', lineHeight:'1.7', marginBottom:'32px'}}>
-          You attempted{' '}
-          <strong style={{color:'#60a5fa', fontSize:'20px'}}>{answered}</strong>
+        <p style={{ color: tokens.textMuted, fontSize: '16px', lineHeight: '1.7', marginBottom: '36px' }}>
+          Great effort! You attempted{' '}
+          <strong style={{ color: tokens.primary, fontSize: '22px' }}>{answered}</strong>
           {' '}out of{' '}
-          <strong style={{color:'#f1f5f9', fontSize:'20px'}}>{total}</strong>
+          <strong style={{ color: tokens.text, fontSize: '22px' }}>{total}</strong>
           {' '}questions.
         </p>
-        <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <button
-            onClick={() => navigate(`/student/quiz/${quiz._id}/leaderboard`)}
+            onClick={() => navigate(`/leaderboard/${quiz._id}`)}
             style={{
-              width:'100%', padding:'13px',
-              background:'linear-gradient(135deg,#7c3aed,#6d28d9)',
-              border:'none', borderRadius:'10px', color:'#fff',
-              fontWeight:600, fontSize:'15px', cursor:'pointer'
+              width: '100%', padding: '14px',
+              background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+              border: 'none', borderRadius: '12px', color: '#fff',
+              fontWeight: 700, fontSize: '16px', cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(124,58,237,0.2)'
             }}
-          >🏆 View Leaderboard</button>
+          >🏆 View Live Leaderboard</button>
           <button
             onClick={() => navigate('/student/dashboard')}
             style={{
-              width:'100%', padding:'13px',
-              background:'#1e293b', border:'1px solid #334155',
-              borderRadius:'10px', color:'#94a3b8',
-              fontWeight:500, fontSize:'15px', cursor:'pointer'
+              width: '100%', padding: '14px',
+              background: tokens.surfaceHover, border: `1px solid ${tokens.border}`,
+              borderRadius: '12px', color: tokens.textMuted,
+              fontWeight: 600, fontSize: '15px', cursor: 'pointer'
             }}
           >Back to Dashboard</button>
         </div>
@@ -517,109 +567,86 @@ const SubmittedScreen = ({ quiz, answers, result, navigate }) => {
 const css = {
   root: {
     display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',
-    background:'#0f172a',fontFamily:"'Inter',sans-serif",color:'#f1f5f9'
+    transition:'background 0.3s, color 0.3s'
   },
-  header: {
-    height:'64px',background:'rgba(15,23,42,0.95)',
-    backdropFilter:'blur(12px)',
-    borderBottom:'1px solid #1e293b',
-    display:'flex',alignItems:'center',padding:'0 24px',gap:'24px',
-    position:'sticky',top:0,zIndex:100,flexShrink:0
-  },
-  logo: { fontSize:'18px',flexShrink:0,letterSpacing:'-0.3px' },
   progressArea: {
-    flex:1,maxWidth:'500px',display:'flex',flexDirection:'column',gap:'6px'
+    display:'flex',flexDirection:'column',gap:'4px'
   },
   progressLabels: {
     display:'flex',justifyContent:'space-between',alignItems:'center'
   },
   progressTrack: {
-    height:'6px',background:'#1e293b',borderRadius:'99px',overflow:'hidden'
+    height:'5px',borderRadius:'99px',overflow:'hidden'
   },
   progressFill: {
     height:'100%',
-    background:'linear-gradient(90deg,#2563eb,#60a5fa)',
     borderRadius:'99px',transition:'width 0.4s ease'
-  },
-  headerRight: {
-    display:'flex',alignItems:'center',gap:'12px',flexShrink:0
   },
   timerChip: {
     display:'flex',alignItems:'center',gap:'6px',
-    padding:'6px 12px',borderRadius:'8px',border:'1px solid',
-    fontWeight:600,fontSize:'14px'
-  },
-  userChip: {
-    display:'flex',alignItems:'center',gap:'10px',
-    padding:'6px 12px 6px 6px',
-    background:'#1e293b',borderRadius:'10px',border:'1px solid #334155'
-  },
-  avatar: { width:'30px',height:'30px',borderRadius:'50%',objectFit:'cover' },
-  avatarFallback: {
-    width:'30px',height:'30px',borderRadius:'50%',
-    background:'linear-gradient(135deg,#2563eb,#7c3aed)',
-    display:'flex',alignItems:'center',justifyContent:'center',
-    fontSize:'13px',fontWeight:700,color:'#fff',flexShrink:0
+    padding: '5px 10px', borderRadius: '6px', border: '1px solid',
+    fontWeight: 600, fontSize: '13px'
   },
   body: { display:'flex',flex:1,overflow:'hidden' },
 
   sidebar: {
-    width:'220px',borderRight:'1px solid #1e293b',
+    width:'220px',
     overflowY:'auto',display:'flex',flexDirection:'column',flexShrink:0,
-    background:'#0d1520'
+    transition: 'background 0.3s, border-color 0.3s'
   },
   qGrid: {
     display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',padding:'16px'
   },
   qBubble: {
-    width:'36px',height:'36px',borderRadius:'8px',
+    width:'38px',height:'38px',borderRadius:'10px',
     display:'flex',alignItems:'center',justifyContent:'center',
-    fontSize:'12px',userSelect:'none'
+    fontSize:'13px',userSelect:'none'
   },
-  sidebarFooter: { padding:'12px 16px',marginTop:'auto',borderTop:'1px solid #1e293b' },
-  progressMini: { height:'4px',background:'#1e293b',borderRadius:'99px',overflow:'hidden' },
+  sidebarFooter: { padding:'12px 16px',marginTop:'auto' },
+  progressMini: { height:'4px',background:'rgba(0,0,0,0.1)',borderRadius:'99px',overflow:'hidden' },
   progressMiniFill: {
-    height:'100%',background:'linear-gradient(90deg,#10b981,#34d399)',
+    height:'100%',background:'var(--success)',
     borderRadius:'99px',transition:'width 0.5s ease'
   },
 
   main: { flex:1,overflowY:'auto',padding:'24px' },
   card: {
-    background:'#111827',borderRadius:'16px',
-    border:'1px solid #1e293b',padding:'36px',
-    maxWidth:'900px',margin:'0 auto',
+    borderRadius:'16px',
+    padding:'36px',
+    maxWidth:'800px',margin:'0 auto',
     display:'flex',flexDirection:'column',gap:'32px',
-    minHeight:'calc(100vh - 112px)'
+    minHeight:'calc(100vh - 110px)',
+    transition: 'background 0.3s, border-color 0.3s'
   },
   qHeader: { display:'flex',alignItems:'center',gap:'12px' },
   qBadge: {
-    background:'rgba(37,99,235,0.15)',color:'#60a5fa',
-    padding:'4px 12px',borderRadius:'99px',fontSize:'12px',fontWeight:600,
-    border:'1px solid rgba(96,165,250,0.2)',whiteSpace:'nowrap'
+    background:'var(--active-item)',color:'var(--active-text)',
+    padding:'4px 12px',borderRadius:'99px',fontSize:'12px',fontWeight:700,
+    border:'1px solid var(--border)',whiteSpace:'nowrap'
   },
-  qText: { fontSize:'22px',fontWeight:700,lineHeight:1.5,color:'#f1f5f9' },
+  qText: { fontSize:'22px',fontWeight:700,lineHeight:1.5 },
   optGrid: { display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px' },
   optCard: {
     borderWidth:'2px',borderStyle:'solid',borderRadius:'12px',
     padding:'20px',display:'flex',alignItems:'center',gap:'14px'
   },
   optLabel: {
-    width:'32px',height:'32px',borderRadius:'8px',flexShrink:0,
+    width:'34px',height:'34px',borderRadius:'10px',flexShrink:0,
     display:'flex',alignItems:'center',justifyContent:'center',
-    fontWeight:700,fontSize:'13px'
+    fontWeight:700,fontSize:'14px'
   },
   optText: { fontSize:'15px',lineHeight:1.5,flex:1 },
   navRow: {
     display:'flex',justifyContent:'space-between',alignItems:'center',
-    paddingTop:'20px',borderTop:'1px solid #1e293b',marginTop:'auto'
+    paddingTop:'24px',marginTop:'auto'
   },
   btn: {
-    padding:'11px 22px',borderRadius:'8px',fontFamily:"'Inter',sans-serif",
-    fontWeight:600,fontSize:'14px',border:'none',letterSpacing:'0.2px'
+    padding:'11px 24px',borderRadius:'10px',fontFamily:"'Inter',sans-serif",
+    fontWeight:700,fontSize:'14px',border:'none',letterSpacing:'0.2px'
   },
-  btnBlue: { background:'linear-gradient(135deg,#2563eb,#1d4ed8)',color:'#fff' },
-  btnGreen: { background:'linear-gradient(135deg,#059669,#10b981)',color:'#fff' },
-  btnGhost: { background:'#1e293b',color:'#94a3b8',border:'1px solid #334155' },
+  btnBlue: { background:'var(--primary)',color:'#fff' },
+  btnGreen: { background:'var(--success)',color:'#fff' },
+  btnGhost: { background:'var(--surface-hover)',color:'var(--text-muted)',border:'1px solid var(--border)' },
 };
 
 export default StudentQuizPlay;
