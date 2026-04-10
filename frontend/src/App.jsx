@@ -30,7 +30,7 @@ function App() {
             
             <Route path="/admin/users" element={<ProtectedRoute roleRequired="admin"><UserManagement /></ProtectedRoute>} />
             <Route path="/admin/live-sessions" element={<ProtectedRoute roleRequired="admin"><LiveSessions /></ProtectedRoute>} />
-            <Route path="/admin/leaderboard/:id" element={<ProtectedRoute roleRequired="admin"><EventLeaderboard /></ProtectedRoute>} />
+            <Route path="/leaderboard/:id" element={<EventLeaderboard />} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
           

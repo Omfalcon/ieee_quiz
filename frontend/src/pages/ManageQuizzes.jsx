@@ -12,10 +12,10 @@ import {
   CheckCircle,
   Copy,
   Trash2,
-  Edit2,
   Edit3,
   Maximize,
-  FileSignature
+  FileSignature,
+  RefreshCw
 } from "lucide-react";
 
 const API = "http://127.0.0.1:8000";
@@ -427,17 +427,8 @@ const ManageQuizzes = () => {
                   alignItems: "center",
                   cursor: "pointer",
                   marginBottom: "10px",
-                  transition: "box-shadow 0.15s",
                 }}
                 onClick={() => navigate(`/admin/manage-quizzes/view/${q._id}`)}
-                onMouseEnter={(e) =>
-                (e.currentTarget.style.boxShadow =
-                  "0 4px 14px rgba(0,0,0,0.10)")
-                }
-                onMouseLeave={(e) =>
-                (e.currentTarget.style.boxShadow =
-                  "0 1px 4px rgba(0,0,0,0.05)")
-                }
               >
                 {/* Left: icon + info */}
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -811,8 +802,6 @@ const ManageQuizzes = () => {
 
     const status = getStatus(quiz);
     const sc = STATUS_MAP[status] || STATUS_MAP.Scheduled;
-    const canShowLeaderboard =
-      status === "Live" || status === "Finished";
     const currentQ = quiz.questions[selQ] ?? null;
 
     // Toggle button: Live → "End Quiz" (danger), else → "Go Live" (success)
@@ -894,10 +883,17 @@ const ManageQuizzes = () => {
                 Edit Quiz
               </button>
               <button
-                style={{ ...S.btnPrimary, background: "#0f172a" }}
-                onClick={() => window.open(`/admin/leaderboard/${id}`, '_blank')}
+                style={{ 
+                  ...S.btnPrimary, 
+                  background: "#4f46e5",
+                  display: "flex", alignItems: "center", gap: "8px",
+                  border: "none"
+                }}
+                onClick={() => window.open(`/leaderboard/${id}`, '_blank')}
               >
-                <Maximize size={18} /> Live Leaderboard
+                <div style={{ width: "8px", height: "8px", background: "#4ade80", borderRadius: "50%" }}></div>
+                <Trophy size={18} />
+                Live Leaderboard
               </button>
             </div>
           </div>

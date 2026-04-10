@@ -150,8 +150,8 @@ const StudentLeaderboard = () => {
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px 24px' }}>
-                                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{user.name}</div>
-                                        <div style={{ fontSize: '12px', color: '#64748b' }}>{user.email.split('@')[0]}***</div>
+                                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{user?.name || "Participant"}</div>
+                                        <div style={{ fontSize: '12px', color: '#64748b' }}>{user?.email?.split('@')[0] || "anon"}***</div>
                                     </td>
                                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f0fdf4', color: '#16a34a', padding: '4px 12px', borderRadius: '12px', fontWeight: '700', fontSize: '13px' }}>
@@ -159,7 +159,7 @@ const StudentLeaderboard = () => {
                                         </div>
                                     </td>
                                     <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: '800', color: '#1e63b5', fontSize: '16px' }}>
-                                        {user.points}
+                                        {user?.points?.toLocaleString() || 0}
                                     </td>
                                 </tr>
                             ))}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, Clock, User, ArrowLeft, Medal, Crown, Star, Maximize, RefreshCcw } from 'lucide-react';
+import { Trophy, Clock, User, ArrowLeft, Medal, Crown, Star, Maximize, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 
 const API = "http://127.0.0.1:8000";
@@ -49,7 +49,7 @@ const EventLeaderboard = () => {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#020617' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <RefreshCcw size={48} className="animate-spin" style={{ color: '#3b82f6', marginBottom: '16px' }} />
+                    <RefreshCw size={48} style={{ color: '#3b82f6', marginBottom: '16px' }} />
                     <p style={{ fontSize: '18px', fontWeight: '600', color: '#94a3b8' }}>Initializing Live Stream...</p>
                 </div>
             </div>
@@ -141,8 +141,8 @@ const EventLeaderboard = () => {
                                 <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: '#94a3b822', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Medal size={40} color="#94a3b8" />
                                 </div>
-                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[1].name}</h3>
-                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#94a3b8' }}>{leaderboard[1].points.toLocaleString()}</div>
+                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[1]?.name || "Challenger"}</h3>
+                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#94a3b8' }}>{leaderboard[1]?.points?.toLocaleString() || 0}</div>
                                 <div style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>RANK #2</div>
                             </div>
                         </div>
@@ -161,8 +161,8 @@ const EventLeaderboard = () => {
                                 <div style={{ width: '100px', height: '100px', margin: '0 auto 24px', background: '#fbbf2422', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Crown size={60} color="#fbbf24" />
                                 </div>
-                                <h3 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px' }}>{leaderboard[0].name}</h3>
-                                <div style={{ fontSize: '48px', fontWeight: '900', color: '#fbbf24' }}>{leaderboard[0].points.toLocaleString()}</div>
+                                <h3 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px' }}>{leaderboard[0]?.name || "Champion"}</h3>
+                                <div style={{ fontSize: '48px', fontWeight: '900', color: '#fbbf24' }}>{leaderboard[0]?.points?.toLocaleString() || 0}</div>
                                 <div style={{ color: '#fbbf24', fontSize: '14px', fontWeight: '700', letterSpacing: '2px', marginTop: '8px' }}>CHAMPION</div>
                             </div>
                         </div>
@@ -180,8 +180,8 @@ const EventLeaderboard = () => {
                                 <div style={{ width: '80px', height: '80px', margin: '0 auto 20px', background: '#92400e22', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Star size={40} color="#f59e0b" />
                                 </div>
-                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[2].name}</h3>
-                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b' }}>{leaderboard[2].points.toLocaleString()}</div>
+                                <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>{leaderboard[2]?.name || "Challenger"}</h3>
+                                <div style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b' }}>{leaderboard[2]?.points?.toLocaleString() || 0}</div>
                                 <div style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>RANK #3</div>
                             </div>
                         </div>
@@ -209,19 +209,19 @@ const EventLeaderboard = () => {
                                 }}>
                                     <div style={{ fontSize: '18px', fontWeight: '800', color: '#475569', width: '40px' }}>#{idx + 4}</div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '18px', fontWeight: '600' }}>{user.name}</div>
-                                        <div style={{ fontSize: '12px', color: '#475569' }}>{user.email.split('@')[0]}***@***</div>
+                                        <div style={{ fontSize: '18px', fontWeight: '600' }}>{user?.name || "Participant"}</div>
+                                        <div style={{ fontSize: '12px', color: '#475569' }}>{user?.email?.split('@')[0] || "anon"}***@***</div>
                                     </div>
                                     <div style={{ textAlign: 'center', minWidth: '100px' }}>
                                         <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>ACCURACY</div>
-                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#10b981' }}>{user.percentage}%</div>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#10b981' }}>{user?.percentage || 0}%</div>
                                     </div>
                                     <div style={{ textAlign: 'center', minWidth: '100px' }}>
                                         <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}>TIME</div>
-                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#3b82f6' }}>{user.time_taken_seconds}s</div>
+                                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#3b82f6' }}>{user?.time_taken_seconds || 0}s</div>
                                     </div>
                                     <div style={{ fontSize: '24px', fontWeight: '900', color: 'white', minWidth: '120px', textAlign: 'right' }}>
-                                        {user.points.toLocaleString()}
+                                        {user?.points?.toLocaleString?.() || 0}
                                     </div>
                                 </div>
                             ))
