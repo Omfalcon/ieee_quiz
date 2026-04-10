@@ -29,11 +29,19 @@ const EMPTY_FORM = {
   questions: [],
 };
 
-const mkQuestion = () => ({
-  question: "",
-  options: ["", "", "", ""],
-  correct_answer: 0,
-});
+const QUESTION_TYPES = [
+  { value: "mcq",       label: "Multiple Choice (Single)" },
+  { value: "msq",       label: "Multiple Select (Multi-answer)" },
+  { value: "truefalse", label: "True / False" },
+  { value: "short",     label: "Short Answer" },
+];
+
+const mkQuestion = (type = "mcq") => {
+  if (type === "truefalse") return { type: "truefalse", question: "", options: ["True", "False"], correct_answer: 0 };
+  if (type === "short")     return { type: "short",     question: "", options: [], correct_answer: "" };
+  if (type === "msq")       return { type: "msq",       question: "", options: ["", "", "", ""], correct_answer: [] };
+  return { type: "mcq", question: "", options: ["", "", "", ""], correct_answer: 0 };
+};
 
 // ─── Status: read directly from DB field (live / scheduled / finished) ───
 const getStatus = (quiz) => {
@@ -195,15 +203,15 @@ const ManageQuizzes = () => {
       const res = await axios.get(`${API}/quizzes/${id}`);
       const clean = {
         ...res.data,
-        questions: (res.data.questions || []).map((q) => ({
-          question: q.question || "",
-          options:
-            Array.isArray(q.options) && q.options.length === 4
-              ? q.options
-              : ["", "", "", ""],
-          correct_answer:
-            typeof q.correct_answer === "number" ? q.correct_answer : 0,
-        })),
+        questions: (res.data.questions || []).map((q) => {
+          const type = q.type || "mcq";
+          return {
+            type,
+            question: q.question || "",
+            options: Array.isArray(q.options) ? q.options : (type === "truefalse" ? ["True", "False"] : ["", "", "", ""]),
+            correct_answer: q.correct_answer ?? (type === "msq" ? [] : type === "short" ? "" : 0),
+          };
+        }),
       };
       setQuiz(clean);
       if (isEdit) setForm(clean);
@@ -262,6 +270,7 @@ const ManageQuizzes = () => {
         start_time: form.start_time,
         end_time: form.end_time,
         questions: form.questions.map((q) => ({
+          type: q.type || "mcq",
           question: q.question,
           options: q.options,
           correct_answer: q.correct_answer,
@@ -295,6 +304,7 @@ const ManageQuizzes = () => {
       // eslint-disable-next-line no-unused-vars
       const { _id, participants, is_active, ...payload } = form;
       payload.questions = payload.questions.map((q) => ({
+        type: q.type || "mcq",
         question: q.question,
         options: q.options,
         correct_answer: q.correct_answer,
@@ -315,11 +325,15 @@ const ManageQuizzes = () => {
       if (res.data && res.data._id) {
         const clean = {
           ...res.data,
-          questions: (res.data.questions || []).map((q) => ({
-            question: q.question || "",
-            options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ["", "", "", ""],
-            correct_answer: typeof q.correct_answer === "number" ? q.correct_answer : 0,
-          })),
+          questions: (res.data.questions || []).map((q) => {
+            const type = q.type || "mcq";
+            return {
+              type,
+              question: q.question || "",
+              options: Array.isArray(q.options) ? q.options : (type === "truefalse" ? ["True", "False"] : ["", "", "", ""]),
+              correct_answer: q.correct_answer ?? (type === "msq" ? [] : type === "short" ? "" : 0),
+            };
+          }),
         };
         setQuiz(clean);
       } else {
@@ -342,8 +356,14 @@ const ManageQuizzes = () => {
   };
 
   // ─── Question form helpers ───
-  const addQuestion = () =>
-    setForm((p) => ({ ...p, questions: [...p.questions, mkQuestion()] }));
+  const addQuestion = (type = "mcq") =>
+    setForm((p) => ({ ...p, questions: [...p.questions, mkQuestion(type)] }));
+
+  const changeQuestionType = (qi, newType) =>
+    setForm((p) => ({
+      ...p,
+      questions: p.questions.map((q, i) => i === qi ? mkQuestion(newType) : q),
+    }));
 
   const removeQuestion = (qi) =>
     setForm((p) => ({ ...p, questions: p.questions.filter((_, i) => i !== qi) }));
@@ -610,9 +630,21 @@ const ManageQuizzes = () => {
                 ({form.questions.length})
               </span>
             </h2>
-            <button style={S.btnSecondary} onClick={addQuestion}>
-              Add New Question
-            </button>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <select
+                id="add-q-type"
+                defaultValue="mcq"
+                style={{ ...S.input, width: "auto", fontSize: "13px", padding: "7px 12px" }}
+              >
+                {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <button style={S.btnSecondary} onClick={() => {
+                const sel = document.getElementById("add-q-type");
+                addQuestion(sel?.value || "mcq");
+              }}>
+                + Add Question
+              </button>
+            </div>
           </div>
 
           {/* Empty questions state */}
@@ -635,26 +667,28 @@ const ManageQuizzes = () => {
           )}
 
           {/* Question cards */}
-          {form.questions.map((q, qi) => (
+          {form.questions.map((q, qi) => {
+            const qType = q.type || "mcq";
+            return (
             <div key={qi} style={{ ...S.card, marginBottom: "12px" }}>
-              {/* Question header */}
-              <div style={{ ...S.between, marginBottom: "14px" }}>
-                <span
-                  style={{
-                    background: "#EFF6FF", color: COLOR.primary,
-                    padding: "3px 12px", borderRadius: "6px",
-                    fontWeight: "700", fontSize: "13px",
-                  }}
-                >
-                  Q{qi + 1}
-                </span>
+              {/* Question header: badge + type selector + remove */}
+              <div style={{ ...S.between, marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ background: "#EFF6FF", color: COLOR.primary, padding: "3px 12px", borderRadius: "6px", fontWeight: "700", fontSize: "13px" }}>
+                    Q{qi + 1}
+                  </span>
+                  <select
+                    value={qType}
+                    onChange={(e) => changeQuestionType(qi, e.target.value)}
+                    style={{ ...S.input, width: "auto", fontSize: "12px", padding: "4px 10px", cursor: "pointer" }}
+                  >
+                    {QUESTION_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
-                  style={{
-                    background: "#FEF2F2", color: COLOR.danger,
-                    border: "1px solid #FECACA", borderRadius: "6px",
-                    padding: "4px 12px", fontSize: "12px",
-                    fontWeight: "600", cursor: "pointer",
-                  }}
+                  style={{ background: "#FEF2F2", color: COLOR.danger, border: "1px solid #FECACA", borderRadius: "6px", padding: "4px 12px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
                   onClick={() => removeQuestion(qi)}
                 >
                   Remove
@@ -668,80 +702,87 @@ const ManageQuizzes = () => {
                   style={S.input}
                   placeholder="Enter the question..."
                   value={q.question}
-                  onChange={(e) =>
-                    updateQuestion(qi, "question", e.target.value)
-                  }
+                  onChange={(e) => updateQuestion(qi, "question", e.target.value)}
                 />
               </div>
 
-              {/* Options */}
-              <label style={S.label}>
-                Options — select the correct answer
-              </label>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "10px",
-                }}
-              >
-                {q.options.map((opt, oi) => {
-                  const isCorrect = q.correct_answer === oi;
-                  return (
-                    <div
-                      key={oi}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        background: isCorrect ? "#F0FDF4" : "#F8FAFC",
-                        border: isCorrect
-                          ? "1.5px solid #86EFAC"
-                          : `1px solid ${COLOR.border}`,
-                        borderRadius: "8px",
-                        padding: "9px 12px",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name={`q${qi}-correct`}
-                        checked={isCorrect}
-                        onChange={() =>
-                          updateQuestion(qi, "correct_answer", oi)
-                        }
-                        style={{
-                          cursor: "pointer",
-                          accentColor: COLOR.success,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span
-                        style={{
-                          fontSize: "11px", fontWeight: "700",
-                          color: isCorrect ? COLOR.success : COLOR.faint,
-                          flexShrink: 0, width: "14px",
-                        }}
-                      >
-                        {String.fromCharCode(65 + oi)}
-                      </span>
-                      <input
-                        style={{
-                          ...S.input,
-                          border: "none",
-                          background: "transparent",
-                          padding: "2px 4px",
-                          fontSize: "13px",
-                        }}
-                        placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                        value={opt}
-                        onChange={(e) => updateOption(qi, oi, e.target.value)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+              {/* ── MCQ ── radio + 4 option inputs */}
+              {qType === "mcq" && (
+                <>
+                  <label style={S.label}>Options — click radio to mark correct answer</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    {q.options.map((opt, oi) => {
+                      const isCorrect = q.correct_answer === oi;
+                      return (
+                        <div key={oi} style={{ display: "flex", alignItems: "center", gap: "10px", background: isCorrect ? "#F0FDF4" : "#F8FAFC", border: isCorrect ? "1.5px solid #86EFAC" : `1px solid ${COLOR.border}`, borderRadius: "8px", padding: "9px 12px" }}>
+                          <input type="radio" name={`q${qi}-correct`} checked={isCorrect} onChange={() => updateQuestion(qi, "correct_answer", oi)} style={{ cursor: "pointer", accentColor: COLOR.success, flexShrink: 0 }} />
+                          <span style={{ fontSize: "11px", fontWeight: "700", color: isCorrect ? COLOR.success : COLOR.faint, flexShrink: 0, width: "14px" }}>{String.fromCharCode(65 + oi)}</span>
+                          <input style={{ ...S.input, border: "none", background: "transparent", padding: "2px 4px", fontSize: "13px" }} placeholder={`Option ${String.fromCharCode(65 + oi)}`} value={opt} onChange={(e) => updateOption(qi, oi, e.target.value)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── MSQ ── checkboxes + 4 option inputs */}
+              {qType === "msq" && (
+                <>
+                  <label style={S.label}>Options — check all correct answers</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    {q.options.map((opt, oi) => {
+                      const correctArr = Array.isArray(q.correct_answer) ? q.correct_answer : [];
+                      const isCorrect = correctArr.includes(oi);
+                      const toggleMSQ = () => {
+                        const next = isCorrect ? correctArr.filter(x => x !== oi) : [...correctArr, oi];
+                        updateQuestion(qi, "correct_answer", next.sort((a,b) => a-b));
+                      };
+                      return (
+                        <div key={oi} style={{ display: "flex", alignItems: "center", gap: "10px", background: isCorrect ? "#F0FDF4" : "#F8FAFC", border: isCorrect ? "1.5px solid #86EFAC" : `1px solid ${COLOR.border}`, borderRadius: "8px", padding: "9px 12px" }}>
+                          <input type="checkbox" checked={isCorrect} onChange={toggleMSQ} style={{ cursor: "pointer", accentColor: COLOR.success, flexShrink: 0, width: "16px", height: "16px" }} />
+                          <span style={{ fontSize: "11px", fontWeight: "700", color: isCorrect ? COLOR.success : COLOR.faint, flexShrink: 0, width: "14px" }}>{String.fromCharCode(65 + oi)}</span>
+                          <input style={{ ...S.input, border: "none", background: "transparent", padding: "2px 4px", fontSize: "13px" }} placeholder={`Option ${String.fromCharCode(65 + oi)}`} value={opt} onChange={(e) => updateOption(qi, oi, e.target.value)} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── TRUE/FALSE ── 2-button toggle */}
+              {qType === "truefalse" && (
+                <>
+                  <label style={S.label}>Select correct answer</label>
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    {["True", "False"].map((label, oi) => {
+                      const isCorrect = q.correct_answer === oi;
+                      return (
+                        <button key={oi} type="button" onClick={() => updateQuestion(qi, "correct_answer", oi)}
+                          style={{ flex: 1, padding: "14px", borderRadius: "10px", fontWeight: "700", fontSize: "15px", cursor: "pointer", border: isCorrect ? `2px solid ${COLOR.success}` : `1px solid ${COLOR.border}`, background: isCorrect ? "#F0FDF4" : "#F8FAFC", color: isCorrect ? COLOR.success : COLOR.muted, transition: "all 0.15s" }}>
+                          {label === "True" ? "✓ True" : "✗ False"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── SHORT ANSWER ── text field */}
+              {qType === "short" && (
+                <>
+                  <label style={S.label}>Correct Answer (case-insensitive match)</label>
+                  <input
+                    style={{ ...S.input, borderColor: COLOR.success, background: "#F0FDF4" }}
+                    placeholder="Enter the expected answer..."
+                    value={q.correct_answer || ""}
+                    onChange={(e) => updateQuestion(qi, "correct_answer", e.target.value)}
+                  />
+                  <p style={{ fontSize: "11px", color: COLOR.muted, marginTop: "6px" }}>Student answers are trimmed and compared case-insensitively.</p>
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
 
           {/* Footer */}
           <div
@@ -1072,7 +1113,12 @@ const ManageQuizzes = () => {
                       </div>
                     </div>
 
-                    {/* Question text */}
+                    {/* Type badge + Question text */}
+                    <div style={{ marginBottom: "6px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, background: "#EFF6FF", color: COLOR.primary, padding: "3px 10px", borderRadius: "20px", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                        {{ mcq: "Multiple Choice", msq: "Multi-Select", truefalse: "True / False", short: "Short Answer" }[currentQ.type || "mcq"] || "MCQ"}
+                      </span>
+                    </div>
                     <p
                       style={{
                         fontSize: "16px", fontWeight: "600",
@@ -1087,16 +1133,28 @@ const ManageQuizzes = () => {
                       )}
                     </p>
 
-                    {/* Options */}
+                    {/* Short answer: just show the correct answer */}
+                    {(currentQ.type === "short") && (
+                      <div style={{ padding: "12px 16px", borderRadius: "8px", background: "#F0FDF4", border: "1.5px solid #86EFAC", marginBottom: "10px" }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, color: COLOR.success, marginBottom: "4px", textTransform: "uppercase" }}>Correct Answer</div>
+                        <div style={{ fontSize: "15px", color: COLOR.text, fontWeight: 600 }}>{currentQ.correct_answer || <span style={{ color: COLOR.faint, fontStyle: "italic" }}>Not set</span>}</div>
+                      </div>
+                    )}
+
+                    {/* Options (MCQ / MSQ / True-False) */}
+                    {currentQ.type !== "short" && (
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        gridTemplateColumns: currentQ.type === "truefalse" ? "1fr 1fr" : "1fr 1fr",
                         gap: "10px",
                       }}
                     >
                       {currentQ.options.map((opt, oi) => {
-                        const correct = currentQ.correct_answer === oi;
+                        const correctArr = Array.isArray(currentQ.correct_answer) ? currentQ.correct_answer : [];
+                        const correct = currentQ.type === "msq"
+                          ? correctArr.includes(oi)
+                          : currentQ.correct_answer === oi;
                         return (
                           <div
                             key={oi}
@@ -1115,7 +1173,7 @@ const ManageQuizzes = () => {
                             <div
                               style={{
                                 width: "26px", height: "26px",
-                                borderRadius: "50%", flexShrink: 0,
+                                borderRadius: currentQ.type === "msq" ? "6px" : "50%", flexShrink: 0,
                                 background: correct ? COLOR.success : "#E2E8F0",
                                 color: correct ? "#fff" : COLOR.muted,
                                 display: "flex", alignItems: "center",
@@ -1159,6 +1217,7 @@ const ManageQuizzes = () => {
                         );
                       })}
                     </div>
+                    )}
                   </div>
                 </div>
               )}

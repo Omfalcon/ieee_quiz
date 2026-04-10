@@ -370,15 +370,36 @@ def submit_quiz(
 
         if 0 <= idx < len(questions):
             q_data = questions[idx]
-            correct = q_data.get("correctAnswer") or q_data.get("correct_answer")
-            
-            # Map index to option text if needed
-            if isinstance(correct, int) and 0 <= correct < len(q_data.get("options", [])):
-                correct = q_data["options"][correct]
-            
-            correct = str(correct or "").strip()
-            is_correct = (selected == correct)
             q_text = q_data.get("question", "")
+            q_type = q_data.get("type", "mcq")
+            correct_raw = q_data.get("correctAnswer") or q_data.get("correct_answer")
+            opts = q_data.get("options", [])
+
+            if q_type == "short":
+                # Case-insensitive trimmed comparison
+                correct_str = str(correct_raw or "").strip().lower()
+                is_correct = (selected.strip().lower() == correct_str)
+
+            elif q_type == "msq":
+                # correct_answer is a list of indices; selected is JSON-encoded list of option texts
+                import json as _json
+                try:
+                    selected_list = sorted(_json.loads(selected)) if selected.startswith("[") else [selected]
+                except Exception:
+                    selected_list = [selected]
+                if isinstance(correct_raw, list):
+                    correct_texts = sorted([opts[i] for i in correct_raw if i < len(opts)])
+                else:
+                    correct_texts = []
+                is_correct = (selected_list == correct_texts)
+
+            else:
+                # MCQ / True-False — map index → text then compare
+                correct = correct_raw
+                if isinstance(correct, int) and 0 <= correct < len(opts):
+                    correct = opts[correct]
+                correct = str(correct or "").strip()
+                is_correct = (selected == correct)
         else:
             is_correct = False
             q_text = ""

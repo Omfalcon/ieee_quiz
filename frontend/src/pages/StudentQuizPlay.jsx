@@ -164,9 +164,13 @@ const StudentQuizPlay = () => {
 
       const answerList = Object.entries(currentAnswers).map(([qIdx, selectedOption]) => {
         const meta = currentMeta[Number(qIdx)] || {};
+        // MSQ answers are arrays — JSON-encode them for the backend
+        const optVal = Array.isArray(selectedOption)
+          ? JSON.stringify(selectedOption)
+          : (selectedOption ?? "");
         return {
           question_index:   Number(qIdx),
-          selected_option:  selectedOption,
+          selected_option:  optVal,
           answered_at:      meta.at || new Date().toISOString(),
           elapsed_seconds:  meta.elapsed || 0,
         };
@@ -201,6 +205,36 @@ const StudentQuizPlay = () => {
     }));
   };
 
+  // MSQ: toggle one option in/out of the selection array
+  const handleSelectMSQ = (qIdx, opt) => {
+    const now = new Date();
+    const elapsedSecs = quizStartAt.current
+      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+      : 0;
+    setAnswers(prev => {
+      const current = Array.isArray(prev[qIdx]) ? prev[qIdx] : [];
+      const next = current.includes(opt) ? current.filter(o => o !== opt) : [...current, opt];
+      return { ...prev, [qIdx]: next.length ? next : undefined };
+    });
+    setAnswerMeta(prev => ({
+      ...prev,
+      [qIdx]: { at: now.toISOString(), elapsed: elapsedSecs }
+    }));
+  };
+
+  // Short: update free-text answer
+  const handleShortAnswer = (qIdx, text) => {
+    const now = new Date();
+    const elapsedSecs = quizStartAt.current
+      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+      : 0;
+    setAnswers(prev => ({ ...prev, [qIdx]: text }));
+    setAnswerMeta(prev => ({
+      ...prev,
+      [qIdx]: { at: now.toISOString(), elapsed: elapsedSecs }
+    }));
+  };
+
   /* ── loading / error screens ── */
   if (loading) return <Splash msg="Loading your quiz…" />;
   if (alreadyDone) return <AlreadyDoneScreen navigate={navigate} />;
@@ -209,7 +243,9 @@ const StudentQuizPlay = () => {
 
   const total    = quiz.total_questions || 0;
   const currentQ = fetchedQuestions[currentIdx];
-  const answered = Object.keys(answers).length;
+  const answered = Object.entries(answers).filter(([, v]) =>
+    Array.isArray(v) ? v.length > 0 : v !== undefined && v !== ""
+  ).length;
   const pct = Math.round(((currentIdx + 1) / total) * 100);
   const timerWarning = timeLeft <= 60;
 
@@ -332,7 +368,8 @@ const StudentQuizPlay = () => {
           <div style={css.qGrid}>
             {[...Array(total)].map((_, idx) => {
               const active   = idx === currentIdx;
-              const isAnswered = !!answers[idx];
+              const a = answers[idx];
+              const isAnswered = Array.isArray(a) ? a.length > 0 : (a !== undefined && a !== "");
               return (
                 <div
                   key={idx}
@@ -380,46 +417,104 @@ const StudentQuizPlay = () => {
                   <div style={css.qBadge}>Question {currentIdx + 1}</div>
                   <div style={{ flex: 1, height: '1px', background: tokens.border }} />
                   <div style={{ fontSize: '12px', color: tokens.textMuted, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {answers[currentIdx] ? <><CheckCircle size={14} style={{ color: tokens.success }} /> Answered</> : '○ Not answered'}
+                    {(() => {
+                    const a = answers[currentIdx];
+                    const hasAnswer = Array.isArray(a) ? a.length > 0 : (a !== undefined && a !== "");
+                    return hasAnswer ? <><CheckCircle size={14} style={{ color: tokens.success }} /> Answered</> : '○ Not answered';
+                  })()}
                   </div>
                 </div>
 
                 {/* Question text */}
                 <h2 style={{ ...css.qText, color: tokens.text }}>{currentQ.question}</h2>
 
-                {/* Options */}
-                <div style={css.optGrid}>
-                  {currentQ.options.map((opt, oIdx) => {
-                    const selected = answers[currentIdx] === opt;
-                    const label = OPTION_LABELS[oIdx];
+                {/* Options — render based on question type */}
+                {(() => {
+                  const qType = currentQ.type || 'mcq';
+
+                  // ── SHORT ANSWER ──
+                  if (qType === 'short') {
                     return (
-                      <div
-                        key={oIdx}
-                        className="opt-card"
-                        onClick={() => handleSelect(currentIdx, opt)}
-                        style={{
-                          ...css.optCard,
-                          borderColor: selected ? tokens.primary : tokens.border,
-                          background: selected
-                            ? (theme === 'dark' ? 'rgba(79,142,247,0.1)' : 'rgba(30,99,181,0.05)')
-                            : tokens.surface,
-                        }}
-                      >
-                        <div style={{
-                          ...css.optLabel,
-                          background: selected ? tokens.primary : (theme === 'dark' ? '#1e3358' : '#f1f5f9'),
-                          color: selected ? '#fff' : tokens.textMuted,
-                        }}>{label}</div>
-                        <div style={{ ...css.optText, color: selected ? tokens.activeText : tokens.text, fontWeight: selected ? 600 : 400 }}>
-                          {opt}
-                        </div>
-                        {selected && (
-                          <div style={{ marginLeft: 'auto', color: tokens.primary }}><CheckCircle size={18} /></div>
-                        )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <p style={{ color: tokens.textMuted, fontSize: '13px', fontWeight: 500 }}>Type your answer below:</p>
+                        <textarea
+                          value={typeof answers[currentIdx] === 'string' ? answers[currentIdx] : ''}
+                          onChange={(e) => handleShortAnswer(currentIdx, e.target.value)}
+                          placeholder="Enter your answer here..."
+                          style={{
+                            width: '100%', minHeight: '120px', padding: '14px 16px',
+                            borderRadius: '12px', border: `2px solid ${answers[currentIdx] ? tokens.primary : tokens.border}`,
+                            background: tokens.surface, color: tokens.text,
+                            fontSize: '15px', fontFamily: 'inherit', resize: 'vertical',
+                            outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box'
+                          }}
+                        />
                       </div>
                     );
-                  })}
-                </div>
+                  }
+
+                  // ── TRUE / FALSE ──
+                  if (qType === 'truefalse') {
+                    return (
+                      <div style={{ display: 'flex', gap: '16px' }}>
+                        {currentQ.options.map((opt, oIdx) => {
+                          const selected = answers[currentIdx] === opt;
+                          return (
+                            <button key={oIdx} className="opt-card" onClick={() => handleSelect(currentIdx, opt)}
+                              style={{ flex: 1, padding: '28px 16px', borderRadius: '16px', border: `2px solid ${selected ? tokens.primary : tokens.border}`, background: selected ? (theme === 'dark' ? 'rgba(79,142,247,0.1)' : 'rgba(30,99,181,0.05)') : tokens.surface, color: selected ? tokens.primary : tokens.textMuted, fontWeight: 700, fontSize: '18px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '32px' }}>{opt === 'True' ? '✓' : '✗'}</span>
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  // ── MSQ (multi-select) ──
+                  if (qType === 'msq') {
+                    const selectedArr = Array.isArray(answers[currentIdx]) ? answers[currentIdx] : [];
+                    return (
+                      <>
+                        <p style={{ color: tokens.textMuted, fontSize: '13px', fontWeight: 500 }}>Select all that apply:</p>
+                        <div style={css.optGrid}>
+                          {currentQ.options.map((opt, oIdx) => {
+                            const selected = selectedArr.includes(opt);
+                            const label = OPTION_LABELS[oIdx];
+                            return (
+                              <div key={oIdx} className="opt-card" onClick={() => handleSelectMSQ(currentIdx, opt)}
+                                style={{ ...css.optCard, borderColor: selected ? tokens.primary : tokens.border, background: selected ? (theme === 'dark' ? 'rgba(79,142,247,0.1)' : 'rgba(30,99,181,0.05)') : tokens.surface }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '6px', border: `2px solid ${selected ? tokens.primary : tokens.border}`, background: selected ? tokens.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  {selected && <CheckCircle size={14} color="#fff" />}
+                                </div>
+                                <div style={{ ...css.optLabel, background: theme === 'dark' ? '#1e3358' : '#f1f5f9', color: tokens.textMuted }}>{label}</div>
+                                <div style={{ ...css.optText, color: selected ? tokens.activeText : tokens.text, fontWeight: selected ? 600 : 400 }}>{opt}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  }
+
+                  // ── MCQ (default) ──
+                  return (
+                    <div style={css.optGrid}>
+                      {currentQ.options.map((opt, oIdx) => {
+                        const selected = answers[currentIdx] === opt;
+                        const label = OPTION_LABELS[oIdx];
+                        return (
+                          <div key={oIdx} className="opt-card" onClick={() => handleSelect(currentIdx, opt)}
+                            style={{ ...css.optCard, borderColor: selected ? tokens.primary : tokens.border, background: selected ? (theme === 'dark' ? 'rgba(79,142,247,0.1)' : 'rgba(30,99,181,0.05)') : tokens.surface }}>
+                            <div style={{ ...css.optLabel, background: selected ? tokens.primary : (theme === 'dark' ? '#1e3358' : '#f1f5f9'), color: selected ? '#fff' : tokens.textMuted }}>{label}</div>
+                            <div style={{ ...css.optText, color: selected ? tokens.activeText : tokens.text, fontWeight: selected ? 600 : 400 }}>{opt}</div>
+                            {selected && <div style={{ marginLeft: 'auto', color: tokens.primary }}><CheckCircle size={18} /></div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </>
             )}
 
