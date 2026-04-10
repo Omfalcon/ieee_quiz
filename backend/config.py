@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Resend API Config
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
     RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+
+    # Anthropic AI Config
+    API_KEY: str = os.getenv("API_KEY", "")
     
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), ".env")
