@@ -4,6 +4,7 @@ class ConnectionManager:
     def __init__(self):
         # Map of quiz_id -> list of connection dicts {"email": "...", "ws": WebSocket}
         self.active_connections: dict[str, list[dict]] = {}
+        self.admin_connections: list[WebSocket] = []
 
     async def connect(self, quiz_id: str, email: str, websocket: WebSocket):
         await websocket.accept()
@@ -18,6 +19,23 @@ class ConnectionManager:
             ]
             if not self.active_connections[quiz_id]:
                 del self.active_connections[quiz_id]
+
+    async def connect_admin(self, websocket: WebSocket):
+        await websocket.accept()
+        self.admin_connections.append(websocket)
+
+    def disconnect_admin(self, websocket: WebSocket):
+        if websocket in self.admin_connections:
+            self.admin_connections.remove(websocket)
+
+    async def broadcast_admin(self, message: dict):
+        """Broadcasts a message to all connected admin clients."""
+        for conn in list(self.admin_connections):
+            try:
+                await conn.send_json(message)
+            except Exception:
+                # Remove stale connections if needed (though disconnect_admin should handle it)
+                pass
 
     async def kick_user(self, quiz_id: str, email: str):
         # Disconnect instances of this user inside this quiz

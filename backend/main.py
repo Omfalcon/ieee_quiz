@@ -46,6 +46,27 @@ async def websocket_quiz_endpoint(websocket: WebSocket, quiz_id: str, token: str
     except WebSocketDisconnect:
         manager.disconnect(quiz_id, email, websocket)
 
+@app.websocket("/ws/admin/live")
+async def websocket_admin_endpoint(websocket: WebSocket, token: str = None):
+    # Authenticate via token query param
+    if not token or token == "null":
+        await websocket.close(code=1008, reason="Missing token")
+        return
+        
+    payload = decode_token(token)
+    if not payload or payload.get("role") != "admin":
+        await websocket.close(code=1008, reason="Admin privileges required")
+        return
+
+    # Add to admin connection list
+    await manager.connect_admin(websocket)
+    try:
+        while True:
+            # Admins don't need to send anything for now
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect_admin(websocket)
+
 # ✅ CORS
 app.add_middleware(
     CORSMiddleware,

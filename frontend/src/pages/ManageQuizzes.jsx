@@ -236,6 +236,16 @@ const ManageQuizzes = () => {
   // ─── Mutations ───
   const handleCreate = async () => {
     if (!form.title.trim()) return alert("Title is required");
+    if (!form.questions || form.questions.length === 0) {
+      return alert("Quiz must have at least 1 question.");
+    }
+    if (!form.start_time || !form.end_time) {
+      return alert("Start and End times are required.");
+    }
+    if (new Date(form.end_time) <= new Date(form.start_time)) {
+      return alert("End time must be after the start time.");
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -263,6 +273,16 @@ const ManageQuizzes = () => {
 
   const handleUpdate = async () => {
     if (!form.title.trim()) return alert("Title is required");
+    if (!form.questions || form.questions.length === 0) {
+      return alert("Quiz must have at least 1 question.");
+    }
+    if (!form.start_time || !form.end_time) {
+      return alert("Start and End times are required.");
+    }
+    if (new Date(form.end_time) <= new Date(form.start_time)) {
+      return alert("End time must be after the start time.");
+    }
+
     setLoading(true);
     try {
       // eslint-disable-next-line no-unused-vars

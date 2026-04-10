@@ -75,6 +75,12 @@ async def kick_participant(quiz_id: str, email_str: str, admin_user: dict = Depe
     # Send WebSocket signal to immediately boot them off
     await manager.kick_user(quiz_id, email_str)
     
+    # Notify admin dashboard to refresh list and leaderboard
+    await manager.broadcast_admin({
+        "action": "REFRESH_SESSION",
+        "quiz_id": quiz_id
+    })
+    
     if res.matched_count > 0:
         return {"message": f"Kicked and permanently banned user {email_str} from quiz {quiz_id}"}
     raise HTTPException(status_code=404, detail="Participant not found")

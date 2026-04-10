@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional
 from pydantic import BaseModel
 from bson import ObjectId
@@ -9,7 +9,14 @@ from backend.database import (
     serialize_quiz
 )
 from backend.utils.jwt_utils import get_current_user
+from backend.utils.websocket_manager import manager
 from datetime import datetime, timezone
+
+async def notify_admins(quiz_id: str):
+    await manager.broadcast_admin({
+        "action": "REFRESH_SESSION",
+        "quiz_id": quiz_id
+    })
 
 router = APIRouter()
 
@@ -75,9 +82,29 @@ def get_quizzes():
 # ✅ CREATE QUIZ
 @router.post("/quizzes")
 def create_quiz(quiz: dict):
+    # Validation logic
+    questions = quiz.get("questions", [])
+    if not questions or len(questions) < 1:
+        raise HTTPException(status_code=400, detail="Quiz must have at least one question.")
+    
+    start_time_str = quiz.get("start_time")
+    end_time_str = quiz.get("end_time")
+    
+    if not start_time_str or not end_time_str:
+        raise HTTPException(status_code=400, detail="Start and End times are required.")
+    
+    start_dt = parse_dt(start_time_str)
+    end_dt = parse_dt(end_time_str)
+    
+    if not start_dt or not end_dt:
+        raise HTTPException(status_code=400, detail="Invalid date format for start or end time.")
+    
+    if end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="End time must be after start time.")
+
     # Strip any stale _id so MongoDB always generates a new one
     quiz.pop("_id", None)
-    quiz["questions"] = quiz.get("questions", [])
+    quiz["questions"] = questions
     quiz["participants"] = 0
     quiz["is_active"] = False
     quiz["status"] = "scheduled"   # always start as scheduled
@@ -128,7 +155,7 @@ def delete_quiz(quiz_id: str):
 
 # ✅ ATTEMPT QUIZ (STUDENT ENTRY POINT)
 @router.post("/quizzes/{quiz_id}/attempt")
-def attempt_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
+def attempt_quiz(quiz_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if not ObjectId.is_valid(quiz_id):
         raise HTTPException(status_code=400, detail="Invalid quiz ID")
 
@@ -160,6 +187,9 @@ def attempt_quiz(quiz_id: str, current_user: dict = Depends(get_current_user)):
         # Increment participant count on quiz
         _quiz_col().update_one({"_id": ObjectId(quiz_id)}, {"$inc": {"participants": 1}})
     
+    # Notify admin dashboard in background
+    background_tasks.add_task(notify_admins, quiz_id)
+    
     # Strip correct answers before sending
     safe_quiz = serialize_quiz(quiz)
     for q in safe_quiz.get("questions", []):
@@ -186,6 +216,7 @@ class SubmitPayload(BaseModel):
 def submit_quiz(
     quiz_id: str,
     payload: SubmitPayload,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)
 ):
     if not ObjectId.is_valid(quiz_id):
@@ -279,6 +310,9 @@ def submit_quiz(
         }}
     )
 
+    # Notify admin dashboard in background
+    background_tasks.add_task(notify_admins, quiz_id)
+
     return {
         "message": "Quiz submitted successfully",
         "answered": answered_count,
@@ -307,6 +341,31 @@ def get_quiz(quiz_id: str):
 # ✅ UPDATE QUIZ — strips _id and protected fields before update
 @router.put("/quizzes/{quiz_id}")
 def update_quiz(quiz_id: str, updated_data: dict):
+    # Validation logic
+    questions = updated_data.get("questions")
+    if questions is not None:
+        if not questions or len(questions) < 1:
+            raise HTTPException(status_code=400, detail="Quiz must have at least one question.")
+    
+    start_time_str = updated_data.get("start_time")
+    end_time_str = updated_data.get("end_time")
+    
+    # If they are being updated, they must be valid
+    if start_time_str or end_time_str:
+        # If one is provided, we check against the provided or existing one
+        # For simplicity in this logic, we assume the payload is complete for times if changed
+        if not start_time_str or not end_time_str:
+            raise HTTPException(status_code=400, detail="Both Start and End times are required when updating times.")
+        
+        start_dt = parse_dt(start_time_str)
+        end_dt = parse_dt(end_time_str)
+        
+        if not start_dt or not end_dt:
+            raise HTTPException(status_code=400, detail="Invalid date format for start or end time.")
+        
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="End time must be after start time.")
+
     # Remove fields that must not be overwritten
     for field in ("_id", "participants", "is_active", "status"):
         updated_data.pop(field, None)

@@ -34,8 +34,8 @@ const LiveSessions = () => {
 
   useEffect(() => {
     fetchLiveQuizzes();
-    // Auto refresh the main view every 10 seconds
-    const interval = setInterval(fetchLiveQuizzes, 10000);
+    // Keep a slow refresh for the main list just in case, but rely on WS for modal
+    const interval = setInterval(fetchLiveQuizzes, 30000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -63,19 +63,39 @@ const LiveSessions = () => {
     }
   };
 
-  // Poll modal data if a quiz is selected
+  // WebSocket connection for real-time updates
   useEffect(() => {
-    if (!selectedQuiz) return;
-    
-    // Fetch immediately
-    fetchModalData(selectedQuiz._id);
-    
-    // Then poll every 5 seconds
-    const interval = setInterval(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//127.0.0.1:8000/ws/admin/live?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.action === "REFRESH_SESSION") {
+          // If the refresh is for the currently open quiz, refresh modal data
+          if (selectedQuiz && selectedQuiz._id === data.quiz_id) {
+            fetchModalData(data.quiz_id);
+          }
+          // Also refresh main list to update participant counts
+          fetchLiveQuizzes();
+        }
+      } catch (err) {
+        console.error("WS Message error", err);
+      }
+    };
+
+    return () => ws.close();
+  }, [selectedQuiz]);
+
+  // Load modal data once when opened
+  useEffect(() => {
+    if (selectedQuiz) {
       fetchModalData(selectedQuiz._id);
-    }, 5000);
-    
-    return () => clearInterval(interval);
+    }
   }, [selectedQuiz]);
 
   const handleCardClick = (quiz) => {
