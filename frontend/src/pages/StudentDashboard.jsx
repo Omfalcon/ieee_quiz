@@ -1,18 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  History, 
-  Award, 
-  Settings, 
-  Clock, 
-  Timer 
-} from 'lucide-react';
+import { LayoutDashboard, History, Award, Settings, Clock, Timer, LogOut } from 'lucide-react';
 import '../styles/StudentDashboard.css';
 import { AuthContext } from '../context/AuthContext';
+import { ThemeToggle } from '../context/ThemeContext';
 
 const StudentDashboard = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
   const [attempts, setAttempts] = useState([]);
@@ -99,41 +93,59 @@ const StudentDashboard = () => {
 
   return (
     <div className="dashboard-container">
-      {/* 🔵 TOP NAVBAR - Full Width */}
+      {/* TOP NAVBAR */}
       <header className="top-header">
-        <div className="brand-title">IEEE Quiz Hub</div>
+        <div className="brand-area">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/IEEE_logo.svg/1200px-IEEE_logo.svg.png"
+            alt="IEEE" style={{ height: 22, filter: 'brightness(0) invert(1)' }}
+          />
+          <span className="brand-title">QuizHub</span>
+          <span className="brand-badge">STUDENT</span>
+        </div>
         <div className="header-right">
+          <ThemeToggle />
+          <div className="header-divider" />
           <div className="header-user-info">
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>{user?.name || 'Student'}</span>
-            <div className="profile-circle">{user?.name ? user.name.charAt(0).toUpperCase() : 'S'}</div>
+            <span>{user?.name || 'Student'}</span>
+            <div className="profile-circle">
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'S'}
+            </div>
           </div>
+          <button
+            className="icon-btn"
+            title="Logout"
+            onClick={() => { logout(); navigate('/login'); }}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </header>
 
-      {/* ⚪ LAYOUT BODY (Sidebar + Main) */}
+      {/* LAYOUT BODY */}
       <div className="layout-body">
-        {/* SIDEBAR */}
         <aside className="sidebar">
-          <div 
+          <div className="sidebar-label">Menu</div>
+          <div
             className={`nav-item ${activeNavItem === 'available' ? 'active' : ''}`}
             onClick={() => setActiveNavItem('available')}
           >
-            <LayoutDashboard size={18} />
+            <LayoutDashboard size={17} />
             <span>Available Quizzes</span>
           </div>
-          <div 
+          <div
             className={`nav-item ${activeNavItem === 'attempts' ? 'active' : ''}`}
             onClick={() => setActiveNavItem('attempts')}
           >
-            <History size={18} />
+            <History size={17} />
             <span>Recent Attempts</span>
           </div>
-          <div className="nav-item">
-            <Award size={18} />
+          <div className="nav-item" style={{ opacity: 0.4, cursor: 'default' }}>
+            <Award size={17} />
             <span>Certificates</span>
           </div>
-          <div className="nav-item">
-            <Settings size={18} />
+          <div className="nav-item" style={{ opacity: 0.4, cursor: 'default' }}>
+            <Settings size={17} />
             <span>Settings</span>
           </div>
         </aside>

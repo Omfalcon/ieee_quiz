@@ -9,25 +9,18 @@ const fmtDT = (val) => {
   if (!val) return "—";
   try {
     return new Date(val).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true,
     });
-  } catch {
-    return String(val);
-  }
+  } catch { return String(val); }
 };
 
 const calcDuration = (start, end) => {
   if (!start || !end) return "Not specified";
-  const s = new Date(start);
-  const e = new Date(end);
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Not specified";
-  const diffMins = Math.round((e - s) / 60000);
-  return diffMins > 0 ? `${diffMins} Minutes` : "Not specified";
+  const s = new Date(start), e = new Date(end);
+  if (isNaN(s) || isNaN(e)) return "Not specified";
+  const mins = Math.round((e - s) / 60000);
+  return mins > 0 ? `${mins} min` : "Not specified";
 };
 
 const StudentQuizIntro = () => {
@@ -38,242 +31,191 @@ const StudentQuizIntro = () => {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
-      try {
-        const res = await axios.get(`${API}/quizzes/${id}`);
-        setQuiz(res.data);
-      } catch (err) {
-        setError("Failed to load quiz details. It may not exist.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchQuiz();
+    axios.get(`${API}/quizzes/${id}`)
+      .then(r => setQuiz(r.data))
+      .catch(() => setError("Quiz not found or could not be loaded."))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleStart = () => {
     if (quiz.status !== "live") {
-      alert(`This quiz is currently ${quiz.status}. You can only attempt a quiz when it is Live.`);
+      alert(`This quiz is currently "${quiz.status}". It can only be attempted when Live.`);
       return;
     }
-    
     const token = localStorage.getItem("token");
     if (!user || !token) {
-      // Force clear any stale state
       localStorage.removeItem("token");
-      // Send to login, carry quiz URL so login bounces back here
       navigate(`/login?redirect=/student/quiz/${id}`);
       return;
     }
-    
     setDisplayName(user?.name || "");
     setShowNamePrompt(true);
   };
 
   const handleConfirmStart = async () => {
-    if (!displayName.trim()) {
-      alert("Please enter a valid display name.");
-      return;
-    }
-    
+    if (!displayName.trim()) { alert("Please enter a display name."); return; }
     setStarting(true);
     try {
       const token = localStorage.getItem("token");
-      
-      // 1. Update Display Name
       const nameRes = await axios.patch(
-        `${API}/auth/student/me/name`, 
-        { name: displayName },
+        `${API}/auth/student/me/name`, { name: displayName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Refresh local token token
-      if (nameRes.data.access_token) {
-        localStorage.setItem("token", nameRes.data.access_token);
-      }
-      
-      // 2. Attempt Quiz
-      await axios.post(
-        `${API}/quizzes/${id}/attempt`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
+      if (nameRes.data.access_token) localStorage.setItem("token", nameRes.data.access_token);
+      await axios.post(`${API}/quizzes/${id}/attempt`, {}, { headers: { Authorization: `Bearer ${token}` } });
       navigate(`/student/quiz/${id}/play`);
     } catch (err) {
-      console.error(err);
       alert("Error starting quiz: " + (err.response?.data?.detail || err.message));
       setStarting(false);
     }
   };
 
+  const isLive = quiz?.status === "live";
+  const isFinished = quiz?.status === "finished";
+
+  const statusColor = isLive ? "#15803d" : isFinished ? "#6B7280" : "#B45309";
+  const statusBg = isLive ? "#DCFCE7" : isFinished ? "#F3F4F6" : "#FEF3C7";
+  const statusLabel = quiz?.status ? quiz.status.charAt(0).toUpperCase() + quiz.status.slice(1) : "Scheduled";
+
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#F8FAFC" }}>
-        Loading quiz details...
+      <div style={styles.fullPage}>
+        <div style={{ textAlign: "center" }}>
+          <div style={styles.spinner} />
+          <p style={{ color: "#1e63b5", fontWeight: 600, marginTop: 16, fontFamily: "Inter, sans-serif" }}>Loading quiz...</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   if (error || !quiz) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#F8FAFC" }}>
-        <p style={{ color: "#DC2626" }}>{error}</p>
+      <div style={styles.fullPage}>
+        <div style={{ textAlign: "center", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ color: "#1E293B", marginBottom: 8 }}>Quiz Not Found</h2>
+          <p style={{ color: "#64748B" }}>{error}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#F8FAFC",
-      display: "flex",
-      justifyContent: "center",
-      paddingTop: "60px",
-      fontFamily: "Inter, sans-serif"
-    }}>
-      <div style={{
-        background: "#fff",
-        maxWidth: "600px",
-        width: "100%",
-        borderRadius: "12px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-        padding: "40px",
-        height: "fit-content"
-      }}>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "16px" }}>
-          {quiz.category && (
-            <span style={{
-              background: "#EFF6FF", color: "#2563EB", padding: "4px 12px",
-              borderRadius: "20px", fontSize: "13px", fontWeight: "600"
-            }}>
-              {quiz.category}
-            </span>
-          )}
-          <span style={{ fontSize: "13px", color: "#64748B", fontWeight: "500" }}>
-            {quiz.questions?.length || 0} Questions
-          </span>
+    <div style={styles.page}>
+      {/* Header Banner */}
+      <div style={styles.banner}>
+        <div style={styles.bannerInner}>
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/IEEE_logo.svg/1200px-IEEE_logo.svg.png"
+            alt="IEEE Logo"
+            style={{ height: 28, filter: "brightness(0) invert(1)" }}
+          />
+          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 14 }}>IEEE UPES QuizHub</span>
         </div>
-
-        <h1 style={{ fontSize: "28px", color: "#1E293B", margin: "0 0 16px 0", fontWeight: "700" }}>
-          {quiz.title}
-        </h1>
-
-        {quiz.description && (
-          <p style={{ fontSize: "15px", color: "#475569", lineHeight: "1.6", marginBottom: "32px", whiteSpace: "pre-wrap" }}>
-            {quiz.description}
-          </p>
-        )}
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-          padding: "20px",
-          background: "#F8FAFC",
-          borderRadius: "8px",
-          marginBottom: "32px"
-        }}>
-          <div>
-            <div style={{ fontSize: "12px", color: "#64748B", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>Start Time</div>
-            <div style={{ fontSize: "15px", color: "#1E293B", fontWeight: "600" }}>{fmtDT(quiz.start_time)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "12px", color: "#64748B", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>End Time</div>
-            <div style={{ fontSize: "15px", color: "#1E293B", fontWeight: "600" }}>{fmtDT(quiz.end_time)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "12px", color: "#64748B", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>Total Duration</div>
-            <div style={{ fontSize: "15px", color: "#1E293B", fontWeight: "600" }}>
-              {calcDuration(quiz.start_time, quiz.end_time)}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: "12px", color: "#64748B", fontWeight: "600", textTransform: "uppercase", marginBottom: "4px" }}>Status</div>
-            <div style={{
-              fontSize: "15px",
-              fontWeight: "600",
-              color: quiz.status === "live" ? "#16A34A" : quiz.status === "finished" ? "#6c757d" : "#D97706"
-            }}>
-              {quiz.status ? quiz.status.charAt(0).toUpperCase() + quiz.status.slice(1) : "Scheduled"}
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleStart}
-          disabled={quiz.status !== "live"}
-          style={{
-            width: "100%",
-            background: quiz.status === "live" ? "#2563EB" : "#94A3B8",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            padding: "14px",
-            fontSize: "16px",
-            fontWeight: "600",
-            cursor: quiz.status === "live" ? "pointer" : "not-allowed",
-            transition: "background 0.2s"
-          }}
-          onMouseOver={(e) => { if (quiz.status === "live") e.target.style.background = "#1D4ED8"; }}
-          onMouseOut={(e) => { if (quiz.status === "live") e.target.style.background = "#2563EB"; }}
-        >
-          {quiz.status === "live"
-            ? (user ? "Attempt Quiz Now" : "Login to Attempt Quiz")
-            : quiz.status === "finished"
-              ? "This quiz has ended"
-              : "Quiz not yet live"}
-        </button>
       </div>
 
-      {showNamePrompt && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.5)", display: "flex",
-          justifyContent: "center", alignItems: "center", zIndex: 1000
-        }}>
-          <div style={{
-            background: "#fff", padding: "2rem", borderRadius: "12px",
-            width: "90%", maxWidth: "400px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)"
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: "0.5rem", color: "#1E293B" }}>
-              Confirm Display Name
-            </h3>
-            <p style={{ color: "#64748B", fontSize: "14px", marginBottom: "1.5rem", lineHeight: "1.5" }}>
-              This is the name that will appear on the leaderboard and participant list for this quiz.
+      {/* Main Content */}
+      <div style={styles.outer}>
+        <div style={styles.card}>
+          {/* Category + Status Row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+            {quiz.category && (
+              <span style={styles.categoryBadge}>{quiz.category}</span>
+            )}
+            <span style={{ ...styles.statusBadge, background: statusBg, color: statusColor }}>
+              {isLive && <span style={styles.liveDot} />}
+              {statusLabel}
+            </span>
+            <span style={styles.questionCount}>{quiz.questions?.length || 0} Questions</span>
+          </div>
+
+          {/* Quiz Title */}
+          <h1 style={styles.quizTitle}>{quiz.title}</h1>
+
+          {/* Description */}
+          {quiz.description && (
+            <p style={styles.description}>{quiz.description}</p>
+          )}
+
+          {/* Info Grid */}
+          <div style={styles.infoGrid}>
+            <InfoCell label="Start Time" value={fmtDT(quiz.start_time)} />
+            <InfoCell label="End Time" value={fmtDT(quiz.end_time)} />
+            <InfoCell label="Duration" value={calcDuration(quiz.start_time, quiz.end_time)} />
+            <InfoCell label="Questions" value={`${quiz.questions?.length || 0} Q`} highlight />
+          </div>
+
+          {/* Rules */}
+          <div style={styles.rulesBox}>
+            <p style={styles.rulesTitle}>Quiz Rules</p>
+            <ul style={styles.rulesList}>
+              <li>Each correct answer earns 1000 base points + time bonus.</li>
+              <li>Faster answers score more — speed matters!</li>
+              <li>Once started, you cannot pause or restart.</li>
+              <li>Your name will appear on the leaderboard.</li>
+            </ul>
+          </div>
+
+          {/* CTA Button */}
+          <button
+            onClick={handleStart}
+            disabled={!isLive}
+            style={{
+              ...styles.ctaBtn,
+              background: isLive ? "linear-gradient(135deg, #1e63b5 0%, #2563EB 100%)" : "#CBD5E1",
+              cursor: isLive ? "pointer" : "not-allowed",
+              boxShadow: isLive ? "0 4px 14px rgba(30, 99, 181, 0.4)" : "none",
+            }}
+          >
+            {isLive
+              ? user ? "🚀  Start Quiz Now" : "🔐  Login to Attempt"
+              : isFinished
+                ? "This quiz has ended"
+                : "⏳  Quiz hasn't started yet"}
+          </button>
+
+          {isLive && !user && (
+            <p style={{ textAlign: "center", fontSize: 13, color: "#64748B", marginTop: 12 }}>
+              You'll be redirected back here after login.
             </p>
-            
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "14px", fontWeight: "500", color: "#334155" }}>
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 14px", border: "1px solid #CBD5E1",
-                  borderRadius: "8px", fontSize: "16px", boxSizing: "border-box"
-                }}
-                disabled={starting}
-                autoFocus
-              />
+          )}
+        </div>
+      </div>
+
+      {/* Name Prompt Modal */}
+      {showNamePrompt && (
+        <div style={styles.overlay}>
+          <div style={styles.modal}>
+            <div style={{ marginBottom: 20 }}>
+              <h3 style={styles.modalTitle}>Confirm Your Display Name</h3>
+              <p style={styles.modalSubtitle}>
+                This name will appear on the live leaderboard. Make it count!
+              </p>
             </div>
-            
-            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+
+            <label style={styles.inputLabel}>Display Name</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleConfirmStart()}
+              placeholder="e.g. John Doe"
+              style={styles.input}
+              disabled={starting}
+              autoFocus
+            />
+
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
               <button
                 onClick={() => setShowNamePrompt(false)}
                 disabled={starting}
-                style={{
-                  padding: "10px 16px", background: "transparent", border: "1px solid #CBD5E1",
-                  borderRadius: "6px", cursor: "pointer", color: "#64748B", fontWeight: "500"
-                }}
+                style={styles.cancelBtn}
               >
                 Cancel
               </button>
@@ -281,20 +223,156 @@ const StudentQuizIntro = () => {
                 onClick={handleConfirmStart}
                 disabled={starting || !displayName.trim()}
                 style={{
-                  padding: "10px 16px", background: "#2563EB", border: "none",
-                  borderRadius: "6px", cursor: starting ? "not-allowed" : "pointer", 
-                  color: "#fff", fontWeight: "500", opacity: starting ? 0.7 : 1
+                  ...styles.confirmBtn,
+                  opacity: (starting || !displayName.trim()) ? 0.6 : 1,
+                  cursor: (starting || !displayName.trim()) ? "not-allowed" : "pointer",
                 }}
               >
-                {starting ? "Starting..." : "Start Quiz"}
+                {starting ? "Starting..." : "Let's Go →"}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
     </div>
   );
+};
+
+const InfoCell = ({ label, value, highlight }) => (
+  <div style={{
+    background: highlight ? "#EFF6FF" : "#F8FAFC",
+    border: `1px solid ${highlight ? "#BFDBFE" : "#E2E8F0"}`,
+    borderRadius: 10, padding: "14px 18px"
+  }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 15, fontWeight: 700, color: highlight ? "#1e63b5" : "#1E293B" }}>{value}</div>
+  </div>
+);
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#F0F5FF",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  },
+  banner: {
+    background: "linear-gradient(135deg, #1e3a6e 0%, #1e63b5 100%)",
+    padding: "14px 32px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+  },
+  bannerInner: {
+    maxWidth: 720, margin: "0 auto",
+    display: "flex", alignItems: "center", gap: 14,
+  },
+  fullPage: {
+    display: "flex", justifyContent: "center", alignItems: "center",
+    height: "100vh", background: "#F0F5FF",
+  },
+  spinner: {
+    width: 44, height: 44, borderRadius: "50%",
+    border: "4px solid #BFDBFE", borderTopColor: "#1e63b5",
+    animation: "spin 0.8s linear infinite", margin: "0 auto",
+  },
+  outer: {
+    maxWidth: 700, margin: "0 auto", padding: "40px 20px",
+  },
+  card: {
+    background: "#fff",
+    borderRadius: 20,
+    boxShadow: "0 8px 40px rgba(30, 99, 181, 0.10), 0 2px 8px rgba(0,0,0,0.05)",
+    padding: "40px 44px",
+    animation: "fadeUp 0.4s ease-out",
+  },
+  categoryBadge: {
+    background: "#EFF6FF", color: "#1e63b5",
+    padding: "4px 14px", borderRadius: 20,
+    fontSize: 12, fontWeight: 700, border: "1px solid #BFDBFE",
+  },
+  statusBadge: {
+    display: "inline-flex", alignItems: "center", gap: 6,
+    padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+  },
+  liveDot: {
+    width: 7, height: 7, borderRadius: "50%",
+    background: "#16A34A", boxShadow: "0 0 6px #16A34A",
+    display: "inline-block", animation: "spin 2s linear infinite",
+  },
+  questionCount: {
+    fontSize: 13, color: "#64748B", fontWeight: 500,
+    marginLeft: "auto",
+  },
+  quizTitle: {
+    fontSize: 28, fontWeight: 800, color: "#0F172A",
+    margin: "0 0 14px 0", lineHeight: 1.3,
+  },
+  description: {
+    fontSize: 15, color: "#475569", lineHeight: 1.7,
+    marginBottom: 28, whiteSpace: "pre-wrap",
+  },
+  infoGrid: {
+    display: "grid", gridTemplateColumns: "1fr 1fr",
+    gap: 14, marginBottom: 28,
+  },
+  rulesBox: {
+    background: "#F8FAFC", border: "1px solid #E2E8F0",
+    borderRadius: 12, padding: "18px 22px", marginBottom: 28,
+  },
+  rulesTitle: {
+    fontSize: 12, fontWeight: 700, color: "#64748B",
+    textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 10px 0",
+  },
+  rulesList: {
+    paddingLeft: 18, margin: 0,
+    display: "flex", flexDirection: "column", gap: 6,
+    color: "#475569", fontSize: 14, lineHeight: 1.6,
+  },
+  ctaBtn: {
+    width: "100%", color: "#fff", border: "none",
+    borderRadius: 12, padding: "15px",
+    fontSize: 16, fontWeight: 700, letterSpacing: "0.3px",
+    transition: "all 0.2s",
+  },
+  // Modal
+  overlay: {
+    position: "fixed", inset: 0,
+    background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+    display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000,
+  },
+  modal: {
+    background: "#fff", borderRadius: 20,
+    padding: "32px", width: "90%", maxWidth: 420,
+    boxShadow: "0 24px 80px rgba(0,0,0,0.2)",
+    animation: "fadeUp 0.3s ease-out",
+  },
+  modalTitle: { margin: "0 0 8px 0", fontSize: 20, fontWeight: 700, color: "#0F172A" },
+  modalSubtitle: { margin: 0, color: "#64748B", fontSize: 14, lineHeight: 1.6 },
+  inputLabel: { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 },
+  input: {
+    width: "100%", padding: "12px 14px",
+    border: "1.5px solid #E2E8F0", borderRadius: 10,
+    fontSize: 15, boxSizing: "border-box", outline: "none",
+    color: "#1E293B", fontFamily: "Inter, sans-serif",
+    transition: "border-color 0.2s",
+  },
+  cancelBtn: {
+    flex: 1, padding: "11px", background: "#F8FAFC",
+    border: "1px solid #E2E8F0", borderRadius: 10,
+    fontSize: 14, fontWeight: 600, color: "#64748B", cursor: "pointer",
+  },
+  confirmBtn: {
+    flex: 2, padding: "11px",
+    background: "linear-gradient(135deg, #1e63b5 0%, #2563EB 100%)",
+    border: "none", borderRadius: 10,
+    fontSize: 14, fontWeight: 700, color: "#fff",
+    boxShadow: "0 4px 12px rgba(30, 99, 181, 0.3)",
+  },
 };
 
 export default StudentQuizIntro;
