@@ -39,6 +39,10 @@ def get_quiz_responses_collection():
     return db["quiz_responses"]
 
 
+def get_activity_logs_collection():
+    return db["activity_logs"]
+
+
 def create_indexes():
     """
     Called once at startup. Enforces uniqueness and speeds up leaderboard queries.
@@ -63,6 +67,12 @@ def create_indexes():
     responses.create_index(
         [("quiz_id", 1), ("submitted_at", 1)],
         name="quiz_leaderboard"
+    )
+
+    activity_logs = db["activity_logs"]
+    activity_logs.create_index(
+        [("timestamp", -1)],
+        name="activity_timestamp_desc"
     )
 
 

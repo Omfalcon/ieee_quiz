@@ -8,6 +8,8 @@ from backend.database import connect_db, close_db, create_indexes
 from backend.routes.quiz_routes import router as quiz_router
 from backend.routes.user_routes import router as user_router
 from backend.routes.admin_routes import router as admin_router
+from backend.routes.ai_routes import router as ai_router
+from backend.routes.analytics_routes import router as analytics_router
 from backend.utils.jwt_utils import decode_token
 from backend.utils.websocket_manager import manager
 
@@ -18,6 +20,8 @@ app.include_router(quiz_router)
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(user_router, prefix="/auth/student", tags=["User"])
 app.include_router(admin_router, prefix="/auth/admin", tags=["Admin"])
+app.include_router(ai_router, prefix="/ai", tags=["AI"])
+app.include_router(analytics_router, prefix="/admin/analytics", tags=["Analytics"])
 
 # ── WEBSOCKET FOR REALTIME KICKS ──
 @app.websocket("/ws/quiz/{quiz_id}")
@@ -45,6 +49,17 @@ async def websocket_quiz_endpoint(websocket: WebSocket, quiz_id: str, token: str
             data = await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(quiz_id, email, websocket)
+
+@app.websocket("/ws/leaderboard/{quiz_id}")
+async def websocket_leaderboard_endpoint(websocket: WebSocket, quiz_id: str):
+    """Public WebSocket for projector-mode leaderboard — no auth required."""
+    await manager.connect_leaderboard(quiz_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # keep alive
+    except WebSocketDisconnect:
+        manager.disconnect_leaderboard(quiz_id, websocket)
+
 
 @app.websocket("/ws/admin/live")
 async def websocket_admin_endpoint(websocket: WebSocket, token: str = None):

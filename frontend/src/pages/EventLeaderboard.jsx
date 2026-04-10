@@ -33,8 +33,25 @@ const EventLeaderboard = () => {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 5000); // 5s for projector mode
-        return () => clearInterval(interval);
+    }, [id]);
+
+    // Connect to the public leaderboard WebSocket — no auth required
+    useEffect(() => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//127.0.0.1:8000/ws/leaderboard/${id}`);
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === "NEW_SUBMISSION") {
+                    fetchData();
+                }
+            } catch {
+                // ignore
+            }
+        };
+
+        return () => ws.close(1000, 'Unmounting');
     }, [id]);
 
     const toggleFullScreen = () => {
