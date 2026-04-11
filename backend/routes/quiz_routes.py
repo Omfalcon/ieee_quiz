@@ -6,11 +6,14 @@ from pymongo import UpdateOne
 from backend.database import (
     get_quiz_collection, get_submissions_collection,
     get_participants_collection, get_quiz_responses_collection,
-    get_activity_logs_collection, serialize_quiz
+    get_activity_logs_collection, serialize_quiz, calculate_quiz_status
 )
 from backend.utils.jwt_utils import get_current_user
 from backend.utils.websocket_manager import manager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+# IST offset — mirrors database.py so all naive datetime comparisons are consistent.
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 async def notify_admins(quiz_id: str):
     """Legacy broadcast — kept for backward compatibility with LiveSessions page."""
@@ -131,10 +134,56 @@ def parse_dt(val) -> datetime | None:
         return None
 
 
+def auto_advance_status(quiz: dict) -> dict:
+    """
+    Called on every GET so quiz status is always consistent without admin action.
+
+    - scheduled → live:  writes session_start + is_active=True to DB.
+    - live/scheduled → finished: writes is_active=False, accumulates
+      total_active_minutes from session_start (handles server-restart edge case).
+
+    Returns the (possibly updated) quiz dict so the caller can serialise it
+    immediately without a second DB round-trip.
+    """
+    stored  = quiz.get("status", "scheduled")
+    dynamic = calculate_quiz_status(quiz)
+
+    if dynamic == stored:
+        return quiz          # nothing to do — fast path
+
+    now    = datetime.now(timezone.utc)
+    update: dict = {"status": dynamic}
+
+    if stored == "scheduled" and dynamic == "live":
+        # Auto-promotion: record session start for duration accumulation
+        update["is_active"]     = True
+        update["session_start"] = now.isoformat()
+
+    elif dynamic == "finished":
+        update["is_active"] = False
+        update["session_start"] = None
+        if stored == "live":
+            # Auto-expiry while server was alive (no explicit toggle-off).
+            # Accumulate whatever active time accrued in this session.
+            session_start = parse_dt(quiz.get("session_start"))
+            if session_start and session_start.tzinfo is None:
+                session_start = session_start.replace(tzinfo=timezone.utc)
+            if session_start:
+                session_mins = max(0, round((now - session_start).total_seconds() / 60))
+                update["total_active_minutes"] = (
+                    (quiz.get("total_active_minutes") or 0) + session_mins
+                )
+
+    _quiz_col().update_one({"_id": quiz["_id"]}, {"$set": update})
+    return {**quiz, **update}
+
+
 # ✅ GET ALL QUIZZES
 @router.get("/quizzes")
 def get_quizzes():
-    return [serialize_quiz(q) for q in _quiz_col().find()]
+    quizzes = list(_quiz_col().find())
+    quizzes = [auto_advance_status(q) for q in quizzes]
+    return [serialize_quiz(q) for q in quizzes]
 
 
 # ✅ CREATE QUIZ
@@ -167,6 +216,12 @@ def create_quiz(quiz: dict, background_tasks: BackgroundTasks):
     quiz["is_active"] = False
     quiz["status"] = "scheduled"   # always start as scheduled
 
+    # Store intended duration so toggle logic and scoring don't have to
+    # recompute from start/end times (which change after each toggle).
+    duration_mins = max(1, round((end_dt - start_dt).total_seconds() / 60))
+    quiz["duration"] = duration_mins
+    quiz.setdefault("total_active_minutes", 0)
+
     result = _quiz_col().insert_one(quiz)
     new_quiz = _quiz_col().find_one({"_id": result.inserted_id})
     serialized = serialize_quiz(new_quiz)
@@ -179,28 +234,63 @@ def create_quiz(quiz: dict, background_tasks: BackgroundTasks):
     return serialized
 
 
-# ✅ TOGGLE QUIZ STATUS — cycles through scheduled → live → finished
+# ✅ TOGGLE QUIZ STATUS
+#   ON  (scheduled / finished → live)  : force live, extend end_time if expired
+#   OFF (live → finished)              : end immediately
 @router.put("/quizzes/toggle/{quiz_id}")
 def toggle_quiz(quiz_id: str, background_tasks: BackgroundTasks):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
     quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    current_status = quiz.get("status", "scheduled")
+    current_status = calculate_quiz_status(quiz)
     title = quiz.get("title", "Untitled")
+    now = datetime.now(timezone.utc)
 
-    # Toggle: scheduled/finished → live, live → finished
     if current_status == "live":
-        new_status = "finished"
-        new_is_active = False
-    else:
-        new_status = "live"
-        new_is_active = True
+        # ── OFF: end the quiz, accumulate active session duration ──────────
+        session_start = parse_dt(quiz.get("session_start"))
+        if session_start and session_start.tzinfo is None:
+            session_start = session_start.replace(tzinfo=timezone.utc)
+        session_mins = (
+            max(0, round((now - session_start).total_seconds() / 60))
+            if session_start else 0
+        )
+        new_total = (quiz.get("total_active_minutes") or 0) + session_mins
 
-    _quiz_col().update_one(
+        db_update = {
+            "status": "finished",
+            "is_active": False,
+            # lock end_time to now so time-based logic also sees finished
+            "end_time": now.isoformat(),
+            "total_active_minutes": new_total,
+            "session_start": None,
+        }
+        new_status = "finished"
+    else:
+        # ── ON: force the quiz live, default end = end of current IST day ─
+        # Using IST (UTC+05:30) so "end of day" matches the admin's local clock.
+        now_ist = now.astimezone(_IST)
+        end_of_day = now_ist.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        db_update = {
+            "status": "live",
+            "is_active": True,
+            "end_time": end_of_day.isoformat(),   # stored with +05:30 offset
+            # record session start for duration accumulation when toggled OFF
+            "session_start": now.isoformat(),      # UTC — used only for math
+        }
+        new_status = "live"
+
+    result = _quiz_col().update_one(
         {"_id": ObjectId(quiz_id)},
-        {"$set": {"status": new_status, "is_active": new_is_active}}
+        {"$set": db_update}
     )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Quiz not found")
 
     updated = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
     background_tasks.add_task(notify_quiz_event, "QUIZ_UPDATED", quiz_id, title)
@@ -238,8 +328,9 @@ def attempt_quiz(quiz_id: str, background_tasks: BackgroundTasks, current_user: 
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    if quiz.get("status") != "live":
-        raise HTTPException(status_code=403, detail=f"Quiz is currently {quiz.get('status')} and cannot be attempted.")
+    dynamic_status = calculate_quiz_status(quiz)
+    if dynamic_status != "live":
+        raise HTTPException(status_code=403, detail=f"Quiz is currently {dynamic_status} and cannot be attempted.")
 
     email_str = current_user.get("sub")
     if not email_str:
@@ -495,6 +586,7 @@ def get_quiz(quiz_id: str):
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    quiz = auto_advance_status(quiz)
     return serialize_quiz(quiz)
 
 

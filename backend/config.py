@@ -1,4 +1,7 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = Path(__file__).parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -23,8 +26,11 @@ class Settings(BaseSettings):
     # =========================
     # AI / LLM
     # =========================
-    LLM_API_URL: str = ""
+    # Model ID — must match a model supported by your API key tier
+    LLM_MODEL: str = ""
     API_KEY: str = ""
+    LLM_PROVIDER: str = ""
+    LLM_BASE_URL: str = ""
 
     # =========================
     # EMAIL
@@ -32,9 +38,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
 
-    # 🔥 CRITICAL FIX
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         case_sensitive=True,
         extra="ignore"
     )

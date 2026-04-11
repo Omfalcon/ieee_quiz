@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { label: "Users",            icon: Users,           path: "/admin/users" },
   { label: "Live Sessions",    icon: Video,           path: "/admin/live-sessions" },
   { label: "Analytics",        icon: BarChart2,       path: "/admin/analytics" },
-  { label: "Question Bank",    icon: Database,        path: null },
+  { label: "Question Bank",    icon: Database,        path: "/admin/question-bank" },
   { label: "Certificates",     icon: Award,           path: null },
   { label: "Settings",         icon: Settings,        path: null },
 ];

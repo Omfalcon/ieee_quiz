@@ -30,7 +30,9 @@ const RecentActivity = () => {
     const fetchLogs = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`${API}/auth/admin/activity?limit=15`, {
+            // Request only the 5 most recent quiz lifecycle events.
+            // Backend already filters to quiz_created / quiz_toggled.
+            const res = await fetch(`${API}/auth/admin/activity?limit=5`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) setLogs(await res.json());

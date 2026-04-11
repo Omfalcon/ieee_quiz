@@ -65,7 +65,13 @@ const fmtDT = (val) => {
   }
 };
 
-const calcDuration = (start, end) => {
+// Duration display — prefer stored fields to avoid inflated end_time - start_time
+// after re-toggles. Falls back to time diff only for legacy quizzes.
+const calcDuration = (quiz) => {
+  if (quiz?.total_active_minutes > 0) return `${quiz.total_active_minutes} min`;
+  if (quiz?.duration) return `${quiz.duration} min`;
+  const start = quiz?.start_time;
+  const end   = quiz?.end_time;
   if (!start || !end) return "—";
   const s = new Date(start);
   const e = new Date(end);
@@ -262,6 +268,29 @@ const ManageQuizzes = () => {
     const injected = location.state?.injectedQuestions;
     if (!injected || injected.length === 0) return;
 
+    // Normalise AI-generated questions so the editor never receives undefined
+    // options/correct_answer — which would crash the options .map() calls below.
+    const normalize = (q) => {
+      const type = q.type || "mcq";
+      let opts = Array.isArray(q.options) ? q.options : [];
+      // Pad to 4 options for choice-based types
+      if (type !== "short") {
+        while (opts.length < 4) opts = [...opts, ""];
+        opts = opts.slice(0, 4);
+      }
+      let correct = q.correct_answer ?? q.correctAnswer ?? 0;
+      if (typeof correct === "string") {
+        if (correct.toUpperCase() in { A: 0, B: 1, C: 2, D: 3 }) {
+          correct = correct.toUpperCase().charCodeAt(0) - 65;
+        } else {
+          correct = parseInt(correct, 10) || 0;
+        }
+      }
+      return { type, question: q.question || "", options: opts, correct_answer: correct };
+    };
+
+    const normalized = injected.map(normalize);
+
     if (isCreate) {
       // Restore any form data saved before navigating to the question bank
       let base = { title: "", description: "", category: "", start_time: "", end_time: "", questions: [] };
@@ -270,10 +299,10 @@ const ManageQuizzes = () => {
         try { base = JSON.parse(saved); } catch { /* ignore */ }
         sessionStorage.removeItem("qb_form");
       }
-      setForm({ ...base, questions: [...(base.questions || []), ...injected] });
+      setForm({ ...base, questions: [...(base.questions || []), ...normalized] });
     } else if (isEdit && id) {
       // fetchQuiz is async — store injected so it can pick them up after loading
-      sessionStorage.setItem(`qb_inject_${id}`, JSON.stringify(injected));
+      sessionStorage.setItem(`qb_inject_${id}`, JSON.stringify(normalized));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.injectedQuestions]);
@@ -781,7 +810,7 @@ const ManageQuizzes = () => {
                 <>
                   <label style={S.label}>Options — click radio to mark correct answer</label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    {q.options.map((opt, oi) => {
+                    {(q.options || ["", "", "", ""]).map((opt, oi) => {
                       const isCorrect = q.correct_answer === oi;
                       return (
                         <div key={oi} style={{ display: "flex", alignItems: "center", gap: "10px", background: isCorrect ? "#F0FDF4" : "#F8FAFC", border: isCorrect ? "1.5px solid #86EFAC" : `1px solid ${COLOR.border}`, borderRadius: "8px", padding: "9px 12px" }}>
@@ -800,7 +829,7 @@ const ManageQuizzes = () => {
                 <>
                   <label style={S.label}>Options — check all correct answers</label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    {q.options.map((opt, oi) => {
+                    {(q.options || ["", "", "", ""]).map((opt, oi) => {
                       const correctArr = Array.isArray(q.correct_answer) ? q.correct_answer : [];
                       const isCorrect = correctArr.includes(oi);
                       const toggleMSQ = () => {
@@ -1029,7 +1058,7 @@ const ManageQuizzes = () => {
             {[
               { label: "Start Time", value: fmtDT(quiz.start_time) },
               { label: "End Time", value: fmtDT(quiz.end_time) },
-              { label: "Duration", value: calcDuration(quiz.start_time, quiz.end_time) },
+              { label: "Duration", value: calcDuration(quiz) },
               { label: "Questions", value: quiz.questions.length },
               { label: "Participants", value: quiz.participants ?? 0 },
             ].map((item, i) => (

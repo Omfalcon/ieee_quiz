@@ -87,10 +87,17 @@ async def kick_participant(quiz_id: str, email_str: str, admin_user: dict = Depe
 
 
 # ✅ ADMIN: GET RECENT ACTIVITY LOGS
+# Only quiz lifecycle events are surfaced; limit defaults to 5.
+ACTIVITY_RELEVANT_TYPES = {"quiz_created", "quiz_toggled"}
+
 @router.get("/activity")
-async def get_activity(limit: int = 30, admin_user: dict = Depends(require_admin)):
+async def get_activity(limit: int = 5, admin_user: dict = Depends(require_admin)):
     col = get_activity_logs_collection()
-    logs = list(col.find({}).sort("timestamp", -1).limit(limit))
+    logs = list(
+        col.find({"type": {"$in": list(ACTIVITY_RELEVANT_TYPES)}})
+           .sort("timestamp", -1)
+           .limit(limit)
+    )
     result = []
     for log in logs:
         result.append({
