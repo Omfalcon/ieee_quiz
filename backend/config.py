@@ -1,22 +1,43 @@
-import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
-    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/ieee_quiz")
-    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-jwt-key")
-    JWT_ALGORITHM: str = "HS256"
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    
-    # Resend API Config
-    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
-    RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+    # =========================
+    # DATABASE
+    # =========================
+    MONGO_URI: str = "mongodb://localhost:27017/ieee_quiz"
 
-    # Anthropic AI Config
-    API_KEY: str = os.getenv("API_KEY", "")
-    
-    class Config:
-        env_file = os.path.join(os.path.dirname(__file__), ".env")
+    # =========================
+    # AUTH
+    # =========================
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    JWT_SECRET: str = "super-secret-jwt-key"
+    JWT_ALGORITHM: str = "HS256"
+
+    # =========================
+    # FRONTEND
+    # =========================
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # =========================
+    # AI / LLM
+    # =========================
+    LLM_API_URL: str = ""
+    API_KEY: str = ""
+
+    # =========================
+    # EMAIL
+    # =========================
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+
+    # 🔥 CRITICAL FIX
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
+
 
 settings = Settings()
