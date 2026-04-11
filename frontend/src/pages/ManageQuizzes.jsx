@@ -214,7 +214,22 @@ const ManageQuizzes = () => {
         }),
       };
       setQuiz(clean);
-      if (isEdit) setForm(clean);
+      if (isEdit) {
+        // Check if Question Bank injected questions are waiting (stored in sessionStorage)
+        const qbKey = `qb_inject_${id}`;
+        const pending = sessionStorage.getItem(qbKey);
+        if (pending) {
+          try {
+            const extra = JSON.parse(pending);
+            sessionStorage.removeItem(qbKey);
+            setForm({ ...clean, questions: [...clean.questions, ...extra] });
+            return;
+          } catch {
+            sessionStorage.removeItem(qbKey);
+          }
+        }
+        setForm(clean);
+      }
     } catch { /* silent */ }
   }, [id, isEdit]);
 
@@ -240,6 +255,28 @@ const ManageQuizzes = () => {
       setForm({ title: "", description: "", category: "", start_time: "", end_time: "", questions: [] });
     }
   }, [isCreate]);
+
+  // Inject questions returned from the AI Question Bank page
+  // Must be declared AFTER the isCreate reset so the functional update wins
+  useEffect(() => {
+    const injected = location.state?.injectedQuestions;
+    if (!injected || injected.length === 0) return;
+
+    if (isCreate) {
+      // Restore any form data saved before navigating to the question bank
+      let base = { title: "", description: "", category: "", start_time: "", end_time: "", questions: [] };
+      const saved = sessionStorage.getItem("qb_form");
+      if (saved) {
+        try { base = JSON.parse(saved); } catch { /* ignore */ }
+        sessionStorage.removeItem("qb_form");
+      }
+      setForm({ ...base, questions: [...(base.questions || []), ...injected] });
+    } else if (isEdit && id) {
+      // fetchQuiz is async — store injected so it can pick them up after loading
+      sessionStorage.setItem(`qb_inject_${id}`, JSON.stringify(injected));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.injectedQuestions]);
 
   // Load leaderboard once when entering view mode
   useEffect(() => {
@@ -353,6 +390,17 @@ const ManageQuizzes = () => {
     } catch {
       alert("Failed to delete quiz.");
     }
+  };
+
+  // ─── Navigate to AI Question Bank ───
+  const handleGoToQuestionBank = () => {
+    // Persist current form so we can restore it when returning in create mode
+    if (isCreate) {
+      sessionStorage.setItem("qb_form", JSON.stringify(form));
+    }
+    navigate("/admin/question-bank", {
+      state: { returnTo: location.pathname },
+    });
   };
 
   // ─── Question form helpers ───
@@ -618,6 +666,28 @@ const ManageQuizzes = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* AI Generate Questions CTA */}
+          <div style={{ marginBottom: "16px" }}>
+            <button
+              onClick={handleGoToQuestionBank}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                background: "linear-gradient(135deg, #1e63b5 0%, #7c3aed 100%)",
+                color: "#fff", border: "none", borderRadius: "10px",
+                padding: "11px 22px", fontSize: "14px", fontWeight: 700,
+                cursor: "pointer", boxShadow: "0 4px 14px rgba(30,99,181,0.25)",
+                transition: "opacity 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+            >
+              <span style={{ fontSize: "16px" }}>✨</span> Generate Questions with AI
+            </button>
+            <span style={{ fontSize: "12px", color: COLOR.muted, marginLeft: "12px" }}>
+              AI-generated questions will be added to your quiz below.
+            </span>
           </div>
 
           {/* Questions header */}

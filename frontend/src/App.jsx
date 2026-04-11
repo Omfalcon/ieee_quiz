@@ -14,6 +14,7 @@ import ManageQuizzes from './pages/ManageQuizzes';
 import UserManagement from './pages/UserManagement';
 import LiveSessions from './pages/LiveSessions';
 import Analytics from './pages/Analytics';
+import QuestionBank from './pages/QuestionBank';
 import StudentQuizIntro from './pages/StudentQuizIntro';
 import StudentQuizPlay from './pages/StudentQuizPlay';
 import StudentLeaderboard from './pages/StudentLeaderboard';
@@ -36,6 +37,7 @@ function App() {
             <Route path="/admin/users" element={<ProtectedRoute roleRequired="admin"><UserManagement /></ProtectedRoute>} />
             <Route path="/admin/live-sessions" element={<ProtectedRoute roleRequired="admin"><LiveSessions /></ProtectedRoute>} />
             <Route path="/admin/analytics" element={<ProtectedRoute roleRequired="admin"><Analytics /></ProtectedRoute>} />
+            <Route path="/admin/question-bank" element={<ProtectedRoute roleRequired="admin"><QuestionBank /></ProtectedRoute>} />
             <Route path="/leaderboard/:id" element={<EventLeaderboard />} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
