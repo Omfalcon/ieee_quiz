@@ -8,28 +8,58 @@ from backend.config import settings
 router = APIRouter()
 
 
+def build_llm_request(prompt: str):
+    provider = settings.LLM_PROVIDER.lower()
+
+    if provider == "openrouter":
+        return {
+            "url": settings.LLM_BASE_URL,
+            "headers": {
+                "Authorization": f"Bearer {settings.API_KEY}",
+                "Content-Type": "application/json",
+            },
+            "params": None,
+            "payload": {
+                "model": settings.LLM_MODEL,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+            },
+            "parser": "openrouter"
+        }
+
+    elif provider == "gemini":
+        return {
+            "url": f"{settings.LLM_BASE_URL}/{settings.LLM_MODEL}:generateContent",
+            "headers": {},
+            "params": {"key": settings.API_KEY},
+            "payload": {
+                "contents": [
+                    {"parts": [{"text": prompt}]}
+                ]
+            },
+            "parser": "gemini"
+        }
+
+    else:
+        raise HTTPException(status_code=500, detail="Unsupported LLM provider")
+
+
 class GenerateRequest(BaseModel):
     topic: str
-    difficulty: str = "medium"   # easy | medium | hard
-    count: int = 5               # 1–20
+    difficulty: str = "medium"
+    count: int = 5
 
 
 @router.post("/generate-questions")
 async def generate_questions(req: GenerateRequest):
-    """
-    Call the Anthropic Claude API to generate structured MCQ questions.
-    Requires API_KEY to be set in the environment / .env file.
-    """
+
     if not settings.API_KEY:
         raise HTTPException(
             status_code=503,
-            detail=(
-                "AI service not configured. "
-                "Add API_KEY=<your-key> to backend/.env and restart."
-            ),
+            detail="AI service not configured. Add API_KEY to backend/.env",
         )
 
-    # Clamp count
     count = max(1, min(req.count, 20))
     topic = req.topic.strip()
     difficulty = req.difficulty.strip().lower()
@@ -39,105 +69,207 @@ async def generate_questions(req: GenerateRequest):
     prompt = (
         f"Generate {count} multiple-choice quiz questions about \"{topic}\" "
         f"at {difficulty} difficulty level.\n\n"
-        "Return ONLY a valid JSON array — no explanation, no markdown fences. "
-        "Each element must follow this exact schema:\n"
-        "[\n"
-        "  {\n"
-        "    \"question\": \"<question text>\",\n"
-        "    \"options\": [\"<A>\", \"<B>\", \"<C>\", \"<D>\"],\n"
-        "    \"correct_answer\": <0|1|2|3>\n"
-        "  }\n"
-        "]\n\n"
-        "Rules:\n"
-        "- Exactly 4 options per question.\n"
-        "- correct_answer is the 0-based index of the correct option.\n"
-        "- Questions must be clear, factually accurate, and educational.\n"
-        "- Output the raw JSON array only — nothing else."
+        "Return ONLY a valid JSON array.\n"
+        "[{ \"question\":\"...\", \"options\":[\"A\",\"B\",\"C\",\"D\"], \"correct_answer\":0 }]"
     )
+
+    req_data = build_llm_request(prompt)
 
     try:
         async with httpx.AsyncClient(timeout=40.0) as client:
             response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": settings.API_KEY,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": "claude-haiku-4-5-20251001",
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
+                req_data["url"],
+                headers=req_data["headers"],
+                params=req_data["params"],
+                json=req_data["payload"],
             )
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=504, detail="AI service timed out. Try again."
-        )
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"AI service unreachable: {exc}"
-        )
+        raise HTTPException(status_code=502, detail=f"AI unreachable: {exc}")
 
     if response.status_code != 200:
         raise HTTPException(
             status_code=502,
-            detail=f"Anthropic API error {response.status_code}: {response.text[:300]}",
+            detail=f"AI error {response.status_code}: {response.text}",
         )
 
-    raw_text = response.json()["content"][0]["text"]
+    data = response.json()
 
-    # Extract the JSON array — the model may prefix/suffix with text
+    # ✅ FIXED: provider-based parsing
+    if req_data["parser"] == "openrouter":
+        raw_text = data["choices"][0]["message"]["content"]
+
+    elif req_data["parser"] == "gemini":
+        if "candidates" not in data:
+            raise HTTPException(status_code=500, detail=f"Bad AI response: {data}")
+        raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+
+    else:
+        raise HTTPException(status_code=500, detail="Unknown parser")
+
     match = re.search(r"\[[\s\S]*\]", raw_text)
     if not match:
-        raise HTTPException(
-            status_code=500,
-            detail="AI returned an unexpected format. Try again.",
-        )
+        raise HTTPException(status_code=500, detail="AI did not return a valid JSON array")
 
     try:
         questions_raw = json.loads(match.group())
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=500,
-            detail="AI returned malformed JSON. Try again.",
-        )
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI response parsing failed: {e}")
 
-    if not isinstance(questions_raw, list):
-        raise HTTPException(status_code=500, detail="AI output is not a list.")
-
-    # Validate and sanitise every question
     validated = []
     for item in questions_raw:
         if not isinstance(item, dict):
             continue
 
-        question_text = str(item.get("question", "")).strip()
-        options = item.get("options", [])
-        correct = item.get("correct_answer", 0)
+        q = str(item.get("question", "")).strip()
+        opts = item.get("options", [])
+        correct = item.get("correct_answer", item.get("correctAnswer", 0))
 
-        if not question_text:
+        if not q or not isinstance(opts, list) or len(opts) < 2:
             continue
-        if not isinstance(options, list) or len(options) != 4:
-            continue
-        if not isinstance(correct, int) or correct not in range(4):
+
+        # Normalise to exactly 4 options
+        opts = [str(o).strip() for o in opts[:4]]
+        while len(opts) < 4:
+            opts.append("")
+
+        # Normalise correct_answer to int index (AI sometimes returns "A", "B", etc.)
+        if isinstance(correct, str):
+            if correct.upper() in ("A", "B", "C", "D"):
+                correct = ord(correct.upper()) - ord("A")
+            else:
+                try:
+                    correct = int(correct)
+                except Exception:
+                    correct = 0
+        elif not isinstance(correct, int):
             correct = 0
+        correct = max(0, min(correct, len(opts) - 1))
 
-        validated.append(
-            {
-                "question": question_text,
-                "options": [str(o).strip() for o in options],
-                "correct_answer": correct,
-            }
-        )
+        validated.append({
+            "question": q,
+            "options": opts,
+            "correct_answer": correct,
+            "type": "mcq",
+        })
 
     if not validated:
+        raise HTTPException(status_code=500, detail="No valid questions generated")
+
+    return {"questions": validated, "count": len(validated)}
+
+
+# ================= QUESTION BANK =================
+
+class QuestionBankRequest(BaseModel):
+    topic: str
+    difficulty: str = "medium"
+    types: list[str] = ["mcq"]
+    count: int = 10
+    tags: str = ""
+
+
+@router.post("/question-bank/generate")
+async def question_bank_generate(req: QuestionBankRequest):
+
+    if not settings.API_KEY:
+        raise HTTPException(status_code=503, detail="API_KEY missing")
+
+    count = max(1, min(req.count, 20))
+    topic = req.topic.strip()
+    difficulty = req.difficulty.strip().lower()
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
+    tags_clause = f" Focus on: {req.tags.strip()}." if req.tags and req.tags.strip() else ""
+
+    prompt = (
+        f"Generate {count} multiple-choice quiz questions about \"{topic}\" "
+        f"at {difficulty} difficulty level.{tags_clause}\n\n"
+        "Return ONLY a valid JSON array. Each object must have exactly these fields:\n"
+        "- \"question\": the question text (string)\n"
+        "- \"options\": array of exactly 4 answer choices (strings)\n"
+        "- \"correct_answer\": zero-based index of the correct option (integer 0-3)\n\n"
+        "Example:\n"
+        "[{\"question\":\"What is 2+2?\",\"options\":[\"3\",\"4\",\"5\",\"6\"],\"correct_answer\":1}]\n\n"
+        "Return ONLY the JSON array. No explanation, no markdown, no code blocks."
+    )
+
+    req_data = build_llm_request(prompt)
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                req_data["url"],
+                headers=req_data["headers"],
+                params=req_data["params"],
+                json=req_data["payload"],
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI unreachable: {exc}")
+
+    if response.status_code != 200:
         raise HTTPException(
-            status_code=500,
-            detail=(
-                "AI could not generate valid questions for that topic. "
-                "Try a different topic or difficulty."
-            ),
+            status_code=502,
+            detail=f"AI error {response.status_code}: {response.text[:300]}",
         )
+
+    data = response.json()
+
+    if req_data["parser"] == "openrouter":
+        raw_text = data["choices"][0]["message"]["content"]
+    elif req_data["parser"] == "gemini":
+        if "candidates" not in data:
+            raise HTTPException(status_code=500, detail="Bad AI response")
+        raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+    else:
+        raise HTTPException(status_code=500, detail="Unknown parser")
+
+    match = re.search(r"\[[\s\S]*\]", raw_text)
+    if not match:
+        raise HTTPException(status_code=500, detail="AI did not return a valid JSON array")
+
+    try:
+        questions_raw = json.loads(match.group())
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI response parsing failed: {e}")
+
+    validated = []
+    for item in questions_raw:
+        if not isinstance(item, dict):
+            continue
+
+        q = str(item.get("question", "")).strip()
+        opts = item.get("options", [])
+        correct = item.get("correct_answer", item.get("correctAnswer", 0))
+
+        if not q or not isinstance(opts, list) or len(opts) < 2:
+            continue
+
+        # Normalise to exactly 4 options
+        opts = [str(o).strip() for o in opts[:4]]
+        while len(opts) < 4:
+            opts.append("")
+
+        # Normalise correct_answer to int index
+        if isinstance(correct, str):
+            if correct.upper() in ("A", "B", "C", "D"):
+                correct = ord(correct.upper()) - ord("A")
+            else:
+                try:
+                    correct = int(correct)
+                except Exception:
+                    correct = 0
+        elif not isinstance(correct, int):
+            correct = 0
+        correct = max(0, min(correct, len(opts) - 1))
+
+        validated.append({
+            "question": q,
+            "options": opts,
+            "correct_answer": correct,
+            "type": "mcq",
+        })
+
+    if not validated:
+        raise HTTPException(status_code=500, detail="No valid questions generated")
 
     return {"questions": validated, "count": len(validated)}

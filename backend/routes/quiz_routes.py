@@ -6,16 +6,77 @@ from pymongo import UpdateOne
 from backend.database import (
     get_quiz_collection, get_submissions_collection,
     get_participants_collection, get_quiz_responses_collection,
-    serialize_quiz
+    get_activity_logs_collection, serialize_quiz, calculate_quiz_status
 )
 from backend.utils.jwt_utils import get_current_user
 from backend.utils.websocket_manager import manager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+# IST offset — mirrors database.py so all naive datetime comparisons are consistent.
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 async def notify_admins(quiz_id: str):
+    """Legacy broadcast — kept for backward compatibility with LiveSessions page."""
     await manager.broadcast_admin({
         "action": "REFRESH_SESSION",
         "quiz_id": quiz_id
+    })
+
+
+async def notify_participant_joined(quiz_id: str, email: str):
+    await manager.broadcast_admin({
+        "action": "PARTICIPANT_JOINED",
+        "quiz_id": quiz_id,
+        "email": email
+    })
+
+
+async def notify_new_submission(quiz_id: str, email: str, score: int, points: int):
+    payload = {
+        "action": "NEW_SUBMISSION",
+        "quiz_id": quiz_id,
+        "email": email,
+        "score": score,
+        "points": points
+    }
+    await manager.broadcast_admin(payload)
+    await manager.broadcast_leaderboard(quiz_id, payload)
+
+
+async def notify_quiz_event(event: str, quiz_id: str, quiz_title: str):
+    """Emits QUIZ_UPDATED/QUIZ_CREATED/QUIZ_DELETED to admin connections."""
+    await manager.broadcast_admin({
+        "action": event,          # e.g. "QUIZ_UPDATED", "QUIZ_CREATED", "QUIZ_DELETED"
+        "quiz_id": quiz_id,
+        "quiz_title": quiz_title
+    })
+
+
+async def log_activity(event_type: str, description: str, quiz_id: str = None):
+    """Writes an activity log entry and broadcasts ACTIVITY_LOGGED."""
+    col = get_activity_logs_collection()
+    entry = {
+        "type": event_type,
+        "description": description,
+        "quiz_id": quiz_id,
+        "timestamp": datetime.utcnow()
+    }
+    col.insert_one(entry)
+    # Keep last 100 entries
+    total = col.count_documents({})
+    if total > 100:
+        oldest = list(col.find({}).sort("timestamp", 1).limit(total - 100))
+        ids = [d["_id"] for d in oldest]
+        col.delete_many({"_id": {"$in": ids}})
+
+    await manager.broadcast_admin({
+        "action": "ACTIVITY_LOGGED",
+        "entry": {
+            "type": event_type,
+            "description": description,
+            "quiz_id": quiz_id,
+            "timestamp": entry["timestamp"].isoformat()
+        }
     })
 
 router = APIRouter()
@@ -73,32 +134,78 @@ def parse_dt(val) -> datetime | None:
         return None
 
 
+def auto_advance_status(quiz: dict) -> dict:
+    """
+    Called on every GET so quiz status is always consistent without admin action.
+
+    - scheduled → live:  writes session_start + is_active=True to DB.
+    - live/scheduled → finished: writes is_active=False, accumulates
+      total_active_minutes from session_start (handles server-restart edge case).
+
+    Returns the (possibly updated) quiz dict so the caller can serialise it
+    immediately without a second DB round-trip.
+    """
+    stored  = quiz.get("status", "scheduled")
+    dynamic = calculate_quiz_status(quiz)
+
+    if dynamic == stored:
+        return quiz          # nothing to do — fast path
+
+    now    = datetime.now(timezone.utc)
+    update: dict = {"status": dynamic}
+
+    if stored == "scheduled" and dynamic == "live":
+        # Auto-promotion: record session start for duration accumulation
+        update["is_active"]     = True
+        update["session_start"] = now.isoformat()
+
+    elif dynamic == "finished":
+        update["is_active"] = False
+        update["session_start"] = None
+        if stored == "live":
+            # Auto-expiry while server was alive (no explicit toggle-off).
+            # Accumulate whatever active time accrued in this session.
+            session_start = parse_dt(quiz.get("session_start"))
+            if session_start and session_start.tzinfo is None:
+                session_start = session_start.replace(tzinfo=timezone.utc)
+            if session_start:
+                session_mins = max(0, round((now - session_start).total_seconds() / 60))
+                update["total_active_minutes"] = (
+                    (quiz.get("total_active_minutes") or 0) + session_mins
+                )
+
+    _quiz_col().update_one({"_id": quiz["_id"]}, {"$set": update})
+    return {**quiz, **update}
+
+
 # ✅ GET ALL QUIZZES
 @router.get("/quizzes")
 def get_quizzes():
-    return [serialize_quiz(q) for q in _quiz_col().find()]
+    quizzes = list(_quiz_col().find())
+    quizzes = [auto_advance_status(q) for q in quizzes]
+    return [serialize_quiz(q) for q in quizzes]
 
 
 # ✅ CREATE QUIZ
 @router.post("/quizzes")
-def create_quiz(quiz: dict):
+def create_quiz(quiz: dict, background_tasks: BackgroundTasks):
     # Validation logic
     questions = quiz.get("questions", [])
     if not questions or len(questions) < 1:
         raise HTTPException(status_code=400, detail="Quiz must have at least one question.")
-    
+
     start_time_str = quiz.get("start_time")
     end_time_str = quiz.get("end_time")
-    
+
     if not start_time_str or not end_time_str:
         raise HTTPException(status_code=400, detail="Start and End times are required.")
-    
+
     start_dt = parse_dt(start_time_str)
     end_dt = parse_dt(end_time_str)
-    
+
     if not start_dt or not end_dt:
         raise HTTPException(status_code=400, detail="Invalid date format for start or end time.")
-    
+
     if end_dt <= start_dt:
         raise HTTPException(status_code=400, detail="End time must be after start time.")
 
@@ -109,47 +216,105 @@ def create_quiz(quiz: dict):
     quiz["is_active"] = False
     quiz["status"] = "scheduled"   # always start as scheduled
 
+    # Store intended duration so toggle logic and scoring don't have to
+    # recompute from start/end times (which change after each toggle).
+    duration_mins = max(1, round((end_dt - start_dt).total_seconds() / 60))
+    quiz["duration"] = duration_mins
+    quiz.setdefault("total_active_minutes", 0)
+
     result = _quiz_col().insert_one(quiz)
     new_quiz = _quiz_col().find_one({"_id": result.inserted_id})
-    return serialize_quiz(new_quiz)
+    serialized = serialize_quiz(new_quiz)
+
+    title = serialized.get("title", "Untitled")
+    quiz_id = serialized.get("_id", "")
+    background_tasks.add_task(notify_quiz_event, "QUIZ_CREATED", quiz_id, title)
+    background_tasks.add_task(log_activity, "quiz_created", f"Quiz created: {title}", quiz_id)
+
+    return serialized
 
 
-# ✅ TOGGLE QUIZ STATUS — cycles through scheduled → live → finished
+# ✅ TOGGLE QUIZ STATUS
+#   ON  (scheduled / finished → live)  : force live, extend end_time if expired
+#   OFF (live → finished)              : end immediately
 @router.put("/quizzes/toggle/{quiz_id}")
-def toggle_quiz(quiz_id: str):
+def toggle_quiz(quiz_id: str, background_tasks: BackgroundTasks):
+    if not ObjectId.is_valid(quiz_id):
+        raise HTTPException(status_code=400, detail="Invalid quiz ID")
+
     quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    current_status = quiz.get("status", "scheduled")
+    current_status = calculate_quiz_status(quiz)
+    title = quiz.get("title", "Untitled")
+    now = datetime.now(timezone.utc)
 
-    # Toggle: scheduled/finished → live, live → finished
     if current_status == "live":
-        new_status = "finished"
-        new_is_active = False
-    else:
-        new_status = "live"
-        new_is_active = True
+        # ── OFF: end the quiz, accumulate active session duration ──────────
+        session_start = parse_dt(quiz.get("session_start"))
+        if session_start and session_start.tzinfo is None:
+            session_start = session_start.replace(tzinfo=timezone.utc)
+        session_mins = (
+            max(0, round((now - session_start).total_seconds() / 60))
+            if session_start else 0
+        )
+        new_total = (quiz.get("total_active_minutes") or 0) + session_mins
 
-    _quiz_col().update_one(
+        db_update = {
+            "status": "finished",
+            "is_active": False,
+            # lock end_time to now so time-based logic also sees finished
+            "end_time": now.isoformat(),
+            "total_active_minutes": new_total,
+            "session_start": None,
+        }
+        new_status = "finished"
+    else:
+        # ── ON: force the quiz live, default end = end of current IST day ─
+        # Using IST (UTC+05:30) so "end of day" matches the admin's local clock.
+        now_ist = now.astimezone(_IST)
+        end_of_day = now_ist.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        db_update = {
+            "status": "live",
+            "is_active": True,
+            "end_time": end_of_day.isoformat(),   # stored with +05:30 offset
+            # record session start for duration accumulation when toggled OFF
+            "session_start": now.isoformat(),      # UTC — used only for math
+        }
+        new_status = "live"
+
+    result = _quiz_col().update_one(
         {"_id": ObjectId(quiz_id)},
-        {"$set": {"status": new_status, "is_active": new_is_active}}
+        {"$set": db_update}
     )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Quiz not found")
 
     updated = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    background_tasks.add_task(notify_quiz_event, "QUIZ_UPDATED", quiz_id, title)
+    background_tasks.add_task(log_activity, "quiz_toggled", f"Quiz \"{title}\" set to {new_status}", quiz_id)
+
     return serialize_quiz(updated)
 
 
 # ✅ DELETE QUIZ
 @router.delete("/quizzes/{quiz_id}")
-def delete_quiz(quiz_id: str):
+def delete_quiz(quiz_id: str, background_tasks: BackgroundTasks):
     if not ObjectId.is_valid(quiz_id):
         raise HTTPException(status_code=400, detail="Invalid quiz ID")
-    
+
+    quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
+    title = quiz.get("title", "Untitled") if quiz else "Untitled"
+
     result = _quiz_col().delete_one({"_id": ObjectId(quiz_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Quiz not found")
-        
+
+    background_tasks.add_task(notify_quiz_event, "QUIZ_DELETED", quiz_id, title)
+    background_tasks.add_task(log_activity, "quiz_deleted", f"Quiz deleted: {title}", quiz_id)
+
     return {"message": "Quiz deleted successfully"}
 
 
@@ -163,8 +328,9 @@ def attempt_quiz(quiz_id: str, background_tasks: BackgroundTasks, current_user: 
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    if quiz.get("status") != "live":
-        raise HTTPException(status_code=403, detail=f"Quiz is currently {quiz.get('status')} and cannot be attempted.")
+    dynamic_status = calculate_quiz_status(quiz)
+    if dynamic_status != "live":
+        raise HTTPException(status_code=403, detail=f"Quiz is currently {dynamic_status} and cannot be attempted.")
 
     email_str = current_user.get("sub")
     if not email_str:
@@ -189,7 +355,9 @@ def attempt_quiz(quiz_id: str, background_tasks: BackgroundTasks, current_user: 
     
     # Notify admin dashboard in background
     background_tasks.add_task(notify_admins, quiz_id)
-    
+    if not participant:  # only fire for genuinely new participants
+        background_tasks.add_task(notify_participant_joined, quiz_id, email_str)
+
     # Strip questions before sending to prevent mass-scraping via Network tab
     session_data = serialize_quiz(quiz)
     session_data.pop("questions", None)
@@ -293,15 +461,36 @@ def submit_quiz(
 
         if 0 <= idx < len(questions):
             q_data = questions[idx]
-            correct = q_data.get("correctAnswer") or q_data.get("correct_answer")
-            
-            # Map index to option text if needed
-            if isinstance(correct, int) and 0 <= correct < len(q_data.get("options", [])):
-                correct = q_data["options"][correct]
-            
-            correct = str(correct or "").strip()
-            is_correct = (selected == correct)
             q_text = q_data.get("question", "")
+            q_type = q_data.get("type", "mcq")
+            correct_raw = q_data.get("correctAnswer") or q_data.get("correct_answer")
+            opts = q_data.get("options", [])
+
+            if q_type == "short":
+                # Case-insensitive trimmed comparison
+                correct_str = str(correct_raw or "").strip().lower()
+                is_correct = (selected.strip().lower() == correct_str)
+
+            elif q_type == "msq":
+                # correct_answer is a list of indices; selected is JSON-encoded list of option texts
+                import json as _json
+                try:
+                    selected_list = sorted(_json.loads(selected)) if selected.startswith("[") else [selected]
+                except Exception:
+                    selected_list = [selected]
+                if isinstance(correct_raw, list):
+                    correct_texts = sorted([opts[i] for i in correct_raw if i < len(opts)])
+                else:
+                    correct_texts = []
+                is_correct = (selected_list == correct_texts)
+
+            else:
+                # MCQ / True-False — map index → text then compare
+                correct = correct_raw
+                if isinstance(correct, int) and 0 <= correct < len(opts):
+                    correct = opts[correct]
+                correct = str(correct or "").strip()
+                is_correct = (selected == correct)
         else:
             is_correct = False
             q_text = ""
@@ -371,8 +560,9 @@ def submit_quiz(
         }}
     )
 
-    # Notify admin dashboard in background
+    # Notify admin dashboard + leaderboard viewers in background
     background_tasks.add_task(notify_admins, quiz_id)
+    background_tasks.add_task(notify_new_submission, quiz_id, email_str, score, points)
 
     return {
         "message": "Quiz submitted successfully",
@@ -396,12 +586,13 @@ def get_quiz(quiz_id: str):
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    quiz = auto_advance_status(quiz)
     return serialize_quiz(quiz)
 
 
 # ✅ UPDATE QUIZ — strips _id and protected fields before update
 @router.put("/quizzes/{quiz_id}")
-def update_quiz(quiz_id: str, updated_data: dict):
+def update_quiz(quiz_id: str, updated_data: dict, background_tasks: BackgroundTasks):
     # Validation logic
     questions = updated_data.get("questions")
     if questions is not None:
@@ -443,7 +634,11 @@ def update_quiz(quiz_id: str, updated_data: dict):
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     updated_quiz = _quiz_col().find_one({"_id": ObjectId(quiz_id)})
-    return serialize_quiz(updated_quiz)
+    serialized = serialize_quiz(updated_quiz)
+    title = serialized.get("title", "Untitled")
+    background_tasks.add_task(notify_quiz_event, "QUIZ_UPDATED", quiz_id, title)
+    background_tasks.add_task(log_activity, "quiz_edited", f"Quiz updated: {title}", quiz_id)
+    return serialized
 
 
 # ✅ LEADERBOARD — ranked by score desc, time_taken_seconds asc

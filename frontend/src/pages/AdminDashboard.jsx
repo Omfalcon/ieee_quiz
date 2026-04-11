@@ -4,8 +4,10 @@ import StatsCard from "../components/admin/StatsCard";
 import QuizTable from "../components/admin/QuizTable";
 import LiveSessions from "../components/admin/LiveSessions";
 import RecentActivity from "../components/admin/RecentActivity";
+import { useAdminWS } from "../context/WebSocketContext";
 
 const AdminDashboard = () => {
+  const { lastEvent } = useAdminWS();
 
   const [refresh, setRefresh] = useState(false);
   const [stats, setStats] = useState({
@@ -46,6 +48,15 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchStats();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!lastEvent) return;
+    const { action } = lastEvent;
+    if (["QUIZ_UPDATED", "QUIZ_CREATED", "QUIZ_DELETED", "PARTICIPANT_JOINED", "NEW_SUBMISSION"].includes(action)) {
+      fetchStats();
+      setRefresh(r => !r);
+    }
+  }, [lastEvent]);
 
   return (
     <AdminLayout>

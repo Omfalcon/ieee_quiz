@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { WebSocketProvider } from './context/WebSocketContext';
 
 import Login from './pages/Login';
 import StudentSignup from './pages/StudentSignup';
@@ -12,6 +13,8 @@ import GoogleCallback from './components/GoogleCallback';
 import ManageQuizzes from './pages/ManageQuizzes';
 import UserManagement from './pages/UserManagement';
 import LiveSessions from './pages/LiveSessions';
+import Analytics from './pages/Analytics';
+import QuestionBank from './pages/QuestionBank';
 import StudentQuizIntro from './pages/StudentQuizIntro';
 import StudentQuizPlay from './pages/StudentQuizPlay';
 import StudentLeaderboard from './pages/StudentLeaderboard';
@@ -22,6 +25,7 @@ function App() {
     <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
+        <WebSocketProvider>
         <Routes>
 
             <Route path="/admin/manage-quizzes" element={<ProtectedRoute roleRequired="admin"><ManageQuizzes /></ProtectedRoute>} />
@@ -32,6 +36,8 @@ function App() {
             
             <Route path="/admin/users" element={<ProtectedRoute roleRequired="admin"><UserManagement /></ProtectedRoute>} />
             <Route path="/admin/live-sessions" element={<ProtectedRoute roleRequired="admin"><LiveSessions /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute roleRequired="admin"><Analytics /></ProtectedRoute>} />
+            <Route path="/admin/question-bank" element={<ProtectedRoute roleRequired="admin"><QuestionBank /></ProtectedRoute>} />
             <Route path="/leaderboard/:id" element={<EventLeaderboard />} />
 
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -57,6 +63,7 @@ function App() {
           />
           
         </Routes>
+        </WebSocketProvider>
       </AuthProvider>
     </BrowserRouter>
     </ThemeProvider>

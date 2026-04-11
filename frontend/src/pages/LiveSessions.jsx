@@ -3,11 +3,13 @@ import AdminLayout from "../components/admin/AdminLayout";
 import { Users, Trash2, Clock, Trophy, ChevronRight, X, RefreshCw, Maximize, ExternalLink } from "lucide-react";
 import axios from "axios";
 import { useTheme } from "../context/ThemeContext";
+import { useAdminWS } from "../context/WebSocketContext";
 
 const API = "http://127.0.0.1:8000";
 
 const LiveSessions = () => {
   const { tokens, theme } = useTheme();
+  const { lastEvent } = useAdminWS();
   const [liveQuizzes, setLiveQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,33 +64,17 @@ const LiveSessions = () => {
     }
   };
 
-  // WebSocket connection for real-time updates
+  // React to centralized WebSocket events
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//127.0.0.1:8000/ws/admin/live?token=${token}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.action === "REFRESH_SESSION") {
-          // If the refresh is for the currently open quiz, refresh modal data
-          if (selectedQuiz && selectedQuiz._id === data.quiz_id) {
-            fetchModalData(data.quiz_id);
-          }
-          // Also refresh main list to update participant counts
-          fetchLiveQuizzes();
-        }
-      } catch (err) {
-        console.error("WS Message error", err);
+    if (!lastEvent) return;
+    const { action, quiz_id } = lastEvent;
+    if (["REFRESH_SESSION", "PARTICIPANT_JOINED", "NEW_SUBMISSION", "QUIZ_UPDATED"].includes(action)) {
+      if (selectedQuiz && selectedQuiz._id === quiz_id) {
+        fetchModalData(quiz_id);
       }
-    };
-
-    return () => ws.close();
-  }, [selectedQuiz]);
+      fetchLiveQuizzes();
+    }
+  }, [lastEvent]);
 
   // Load modal data once when opened
   useEffect(() => {
