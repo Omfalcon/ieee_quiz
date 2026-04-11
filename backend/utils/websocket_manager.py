@@ -5,6 +5,8 @@ class ConnectionManager:
         # Map of quiz_id -> list of connection dicts {"email": "...", "ws": WebSocket}
         self.active_connections: dict[str, list[dict]] = {}
         self.admin_connections: list[WebSocket] = []
+        # Map of quiz_id -> list of WebSocket (public leaderboard viewers)
+        self.leaderboard_connections: dict[str, list[WebSocket]] = {}
 
     async def connect(self, quiz_id: str, email: str, websocket: WebSocket):
         await websocket.accept()
@@ -35,6 +37,28 @@ class ConnectionManager:
                 await conn.send_json(message)
             except Exception:
                 # Remove stale connections if needed (though disconnect_admin should handle it)
+                pass
+
+    async def connect_leaderboard(self, quiz_id: str, websocket: WebSocket):
+        await websocket.accept()
+        if quiz_id not in self.leaderboard_connections:
+            self.leaderboard_connections[quiz_id] = []
+        self.leaderboard_connections[quiz_id].append(websocket)
+
+    def disconnect_leaderboard(self, quiz_id: str, websocket: WebSocket):
+        if quiz_id in self.leaderboard_connections:
+            self.leaderboard_connections[quiz_id] = [
+                ws for ws in self.leaderboard_connections[quiz_id] if ws != websocket
+            ]
+            if not self.leaderboard_connections[quiz_id]:
+                del self.leaderboard_connections[quiz_id]
+
+    async def broadcast_leaderboard(self, quiz_id: str, message: dict):
+        """Broadcasts a message to all leaderboard viewers for a quiz."""
+        for ws in list(self.leaderboard_connections.get(quiz_id, [])):
+            try:
+                await ws.send_json(message)
+            except Exception:
                 pass
 
     async def kick_user(self, quiz_id: str, email: str):
