@@ -40,11 +40,14 @@ const StudentQuizPlay = () => {
   const [submitted, setSubmitted]    = useState(false);
   const [submitResult, setSubmitResult] = useState(null); // score data from server
   const [submitting, setSubmitting]  = useState(false);
-  const timerRef    = useRef(null);
-  const quizStartAt = useRef(null);  // epoch ms when quiz loaded
-  const doSubmitRef = useRef(null);  // always points to latest doSubmit
-  const answersRef  = useRef({});    // mirrors answers state — readable from stale closures
-  const answerMetaRef = useRef({});  // mirrors answerMeta state
+  const timerRef        = useRef(null);
+  const quizStartAt     = useRef(null);    // epoch ms when quiz loaded (overall timing)
+  const questionStartAt = useRef(null);    // epoch ms when current question became visible (per-question timing)
+  const prevIdxRef      = useRef(null);    // previous question index — used to clean up sessionStorage on navigate
+  const currentIdxRef   = useRef(0);      // mirror of currentIdx for closures that must not re-subscribe on every render
+  const doSubmitRef     = useRef(null);    // always points to latest doSubmit
+  const answersRef      = useRef({});      // mirrors answers state — readable from stale closures
+  const answerMetaRef   = useRef({});      // mirrors answerMeta state
 
   /* ── fetch quiz ── */
   useEffect(() => {
@@ -78,8 +81,36 @@ const StudentQuizPlay = () => {
   }, [id, user, navigate]);
 
   /* ── fetch individual question ── */
+  // sessionStorage key for this question's start epoch.
+  // Only the CURRENT question's key exists at any time; navigate-away clears it.
+  const qTimerKey = (idx) => `qb_timer_${id}_${idx}`;
+
   const fetchQuestion = async (idx) => {
-    if (fetchedQuestions[idx]) return; // already have it
+    const storageKey = qTimerKey(idx);
+    // Check sessionStorage BEFORE the cache check so refresh recovery works even
+    // when fetchedQuestions is empty (state cleared by page refresh).
+    const savedStartRaw = sessionStorage.getItem(storageKey);
+    const savedStart    = savedStartRaw ? parseInt(savedStartRaw, 10) : null;
+    const hasSaved      = savedStart !== null && !isNaN(savedStart) && savedStart > 0;
+
+    if (fetchedQuestions[idx]) {
+      // ── Question data already cached ───────────────────────────────────────
+      if (hasSaved) {
+        // Refresh recovery: user refreshed while viewing this question.
+        // Restore the original start epoch so elapsed continues correctly.
+        questionStartAt.current = savedStart;
+      } else {
+        // Normal revisit: accumulate time from previous visit(s) by offsetting
+        // the start epoch backwards by whatever was already recorded.
+        const prevElapsed = answerMetaRef.current[idx]?.elapsed || 0;
+        const start = Date.now() - (prevElapsed * 1000);
+        questionStartAt.current = start;
+        sessionStorage.setItem(storageKey, String(start));
+      }
+      return;
+    }
+
+    // ── Question data not cached — fetch from server ──────────────────────
     setLoadingQ(true);
     try {
       const token = localStorage.getItem('token');
@@ -88,9 +119,19 @@ const StudentQuizPlay = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setFetchedQuestions(prev => ({ ...prev, [idx]: res.data }));
+
+      if (hasSaved) {
+        // Refresh recovery: question was already seen before the refresh.
+        questionStartAt.current = savedStart;
+      } else {
+        // First visit: start a fresh timer now that the data has arrived
+        // (excluding network latency from thinking-time measurement).
+        const now = Date.now();
+        questionStartAt.current = now;
+        sessionStorage.setItem(storageKey, String(now));
+      }
     } catch (err) {
       console.error("Failed to fetch question", err);
-      // If unauthorized, maybe session expired
       if (err.response?.status === 403) alert("Session access issue. Please try refreshing.");
     } finally {
       setLoadingQ(false);
@@ -99,13 +140,22 @@ const StudentQuizPlay = () => {
 
   useEffect(() => {
     if (!loading && quiz) {
+      // When navigating AWAY from a question, remove its sessionStorage entry so
+      // only the currently-viewed question's key exists.  This prevents a stale
+      // entry from being wrongly restored as a "refresh" after a normal revisit.
+      if (prevIdxRef.current !== null && prevIdxRef.current !== currentIdx) {
+        sessionStorage.removeItem(qTimerKey(prevIdxRef.current));
+      }
+      prevIdxRef.current = currentIdx;
       fetchQuestion(currentIdx);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, loading, quiz]);
 
   /* ── keep refs in sync with state ── */
-  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { answersRef.current    = answers;    }, [answers]);
   useEffect(() => { answerMetaRef.current = answerMeta; }, [answerMeta]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
 
   /* ── websocket connection ── */
   useEffect(() => {
@@ -151,6 +201,37 @@ const StudentQuizPlay = () => {
     return () => clearInterval(timerRef.current);
   }, [loading, submitted]);
 
+  /* ── Page Visibility API: exclude hidden-tab time from per-question timing ── */
+  // When the user switches to another tab, wall-clock time still passes but
+  // they are not thinking about the question.  We shift questionStartAt forward
+  // by the hidden duration so that time is not counted as thinking time.
+  useEffect(() => {
+    if (!quiz || submitted) return;
+
+    let hiddenAt = null;
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt !== null && questionStartAt.current !== null) {
+        const hiddenMs = Date.now() - hiddenAt;
+        questionStartAt.current += hiddenMs;   // shift start forward → hidden time excluded
+        // Keep sessionStorage in sync so a refresh after a tab-switch also recovers correctly.
+        sessionStorage.setItem(
+          `qb_timer_${id}_${currentIdxRef.current}`,
+          String(questionStartAt.current)
+        );
+        hiddenAt = null;
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  // quiz and submitted gate the listener; id is stable; currentIdxRef is a ref (no dep needed).
+  }, [quiz, submitted, id]);
+
   /* ── submit ── */
   const doSubmit = async () => {
     if (submitting || submitted) return;
@@ -183,6 +264,12 @@ const StudentQuizPlay = () => {
       );
       setSubmitResult(res.data);
       setSubmitted(true);
+      // Clear all per-question timer entries so a post-submit refresh doesn't
+      // find stale sessionStorage keys from this quiz session.
+      const totalQ = quiz?.total_questions || 0;
+      for (let i = 0; i < totalQ; i++) {
+        sessionStorage.removeItem(`qb_timer_${id}_${i}`);
+      }
     } catch (e) {
       console.error(e);
       alert('Submission failed: ' + (e.response?.data?.detail || e.message));
@@ -195,8 +282,10 @@ const StudentQuizPlay = () => {
 
   const handleSelect = (qIdx, opt) => {
     const now = new Date();
-    const elapsedSecs = quizStartAt.current
-      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+    // Per-question elapsed: time since this question became visible.
+    // Using questionStartAt (not quizStartAt) prevents cumulative drift.
+    const elapsedSecs = questionStartAt.current
+      ? Math.round((Date.now() - questionStartAt.current) / 1000)
       : 0;
     setAnswers(prev => ({ ...prev, [qIdx]: opt }));
     setAnswerMeta(prev => ({
@@ -208,8 +297,8 @@ const StudentQuizPlay = () => {
   // MSQ: toggle one option in/out of the selection array
   const handleSelectMSQ = (qIdx, opt) => {
     const now = new Date();
-    const elapsedSecs = quizStartAt.current
-      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+    const elapsedSecs = questionStartAt.current
+      ? Math.round((Date.now() - questionStartAt.current) / 1000)
       : 0;
     setAnswers(prev => {
       const current = Array.isArray(prev[qIdx]) ? prev[qIdx] : [];
@@ -225,8 +314,8 @@ const StudentQuizPlay = () => {
   // Short: update free-text answer
   const handleShortAnswer = (qIdx, text) => {
     const now = new Date();
-    const elapsedSecs = quizStartAt.current
-      ? Math.round((Date.now() - quizStartAt.current) / 1000)
+    const elapsedSecs = questionStartAt.current
+      ? Math.round((Date.now() - questionStartAt.current) / 1000)
       : 0;
     setAnswers(prev => ({ ...prev, [qIdx]: text }));
     setAnswerMeta(prev => ({
