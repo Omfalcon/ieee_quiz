@@ -393,11 +393,13 @@ def get_quiz_question(quiz_id: str, index: int, current_user: dict = Depends(get
     
     q = questions[index]
     
-    # 3. Strip correct answer securely
+    # 3. Strip correct answer securely — keep type so the frontend can render
+    #    MSQ checkboxes, True/False buttons, and short-answer text inputs correctly.
     safe_q = {
         "question": q.get("question"),
-        "options": q.get("options"),
-        "index": index
+        "options":  q.get("options"),
+        "type":     q.get("type", "mcq"),
+        "index":    index,
     }
     
     return safe_q
@@ -479,7 +481,10 @@ def submit_quiz(
                 except Exception:
                     selected_list = [selected]
                 if isinstance(correct_raw, list):
-                    correct_texts = sorted([opts[i] for i in correct_raw if i < len(opts)])
+                    correct_texts = sorted([
+                        opts[i] for i in correct_raw
+                        if isinstance(i, int) and 0 <= i < len(opts)
+                    ])
                 else:
                     correct_texts = []
                 is_correct = (selected_list == correct_texts)
